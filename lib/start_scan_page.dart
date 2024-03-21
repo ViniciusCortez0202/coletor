@@ -18,7 +18,7 @@ class StartScandPage extends StatefulWidget {
 List<String> _beaconsData = [];
 
 class _StartScandPageState extends State<StartScandPage> {
-  final List<String> allowedUUIDs = ["41:99:D8:90:55:2A", "72:14:41:C2:46:03"];
+  final List<String> allowedUUIDs = ["00:FA:B6:1D:DD:EF", "00:FA:B6:1D:DD:E0", "00:FA:B6:1D:DD:FE"];
   List<BluetoothDevice> _systemDevices = [];
   
   List<ScanResult> _scanResults = [];
@@ -45,8 +45,8 @@ class _StartScandPageState extends State<StartScandPage> {
 
     _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
       results.forEach((element) {
-        _scanResults.add(element);
         if (allowedUUIDs.contains(element.device.id.toString())) {
+        _scanResults.add(element);
         }
       });
 /*       if (mounted) {

@@ -15,7 +15,7 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
-  final List<String> allowedUUIDs = ["41:99:D8:90:55:2A", "72:14:41:C2:46:03"];
+  final List<String> allowedUUIDs = ["00:FA:B6:1D:DD:EF", "00:FA:B6:1D:DD:E0", "00:FA:B6:1D:DD:FE"];
   List<BluetoothDevice> _systemDevices = [];
   
   List<ScanResult> _scanResults = [];
@@ -33,7 +33,7 @@ class _PositionPageState extends State<PositionPage> {
     duration = timeToScan.inSeconds.toDouble();
     super.initState();
     
-    Timer.periodic(Duration(seconds: 5), (timer) {
+    Timer.periodic(Duration(seconds: 10), (timer) {
       if (!_isScanning) {
         startScan();
       }
@@ -46,8 +46,8 @@ class _PositionPageState extends State<PositionPage> {
 
     _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
       results.forEach((element) {
-        _scanResults.add(element);
         if (allowedUUIDs.contains(element.device.id.toString())) {
+        _scanResults.add(element);
         }
       });
     }, onError: (e) {});
@@ -87,18 +87,23 @@ class _PositionPageState extends State<PositionPage> {
 
     _scanResults.clear();
 
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
+    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {element
+      print("O ARRAY DE RSSIS:");
+      print(rssisArrays);
       Map<String, List<int>> groupedResults = {};
 
       results.forEach((element) {
-        String uuid = element.device.id.toString();
-        int rssiValue = element.rssi;
+        if (allowedUUIDs.contains(element.device.id.toString())) {
+          String uuid = element.device.id.toString();
+          int rssiValue = element.rssi;
 
-        if (groupedResults.containsKey(uuid)) {
-          groupedResults[uuid]!.add(rssiValue);
-        } else {
-          groupedResults[uuid] = [rssiValue];
+          if (groupedResults.containsKey(uuid)) {
+            groupedResults[uuid]!.add(rssiValue);
+          } else {
+            groupedResults[uuid] = [rssiValue];
+         }
         }
+        
       });
 
       List<int?> rssisArrays = [];
@@ -111,7 +116,7 @@ class _PositionPageState extends State<PositionPage> {
         }
       });
 
-      int maxLength = 7;
+      int maxLength = 3;
 
       rssisArrays.length < maxLength
           ? rssisArrays.addAll(List<int?>.filled(maxLength - rssisArrays.length, null))
@@ -119,12 +124,7 @@ class _PositionPageState extends State<PositionPage> {
 
       rssisArrays = rssisArrays.sublist(0, maxLength);
 
-      print("O ARRAY DE RSSIS:");
-      print(rssisArrays);
-
       fetchData(rssisArrays);
-
-
     }, onError: (e) {
       print("Erro ao escanear: $e");
     });
@@ -133,7 +133,7 @@ class _PositionPageState extends State<PositionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final int rows = 3;
+    final int rows = 4;
     final int cols = 3;
 
     return Scaffold(
