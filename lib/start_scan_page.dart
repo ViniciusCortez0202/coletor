@@ -201,7 +201,7 @@ class _StartScandPageState extends State<StartScandPage> {
                         Map<String, Map<String, List<int>>> groupedResults = {};
 
                         _scanResults.forEach((element) {
-                          String coordinates = "(${arguments['x']}; ${arguments['y']})";
+                          String coordinates = "${arguments['x']}; ${arguments['y']}";
                           String uuid = element.device.id.toString();
                           int rssiValue = element.rssi;
 
