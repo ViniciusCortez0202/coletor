@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:permission_handler/permission_handler.dart'; 
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -11,15 +15,19 @@ class StartScandPage extends StatefulWidget {
   State<StartScandPage> createState() => _StartScandPageState();
 }
 
+List<String> _beaconsData = [];
+
 class _StartScandPageState extends State<StartScandPage> {
+  final List<String> allowedUUIDs = ["41:99:D8:90:55:2A", "72:14:41:C2:46:03"];
   List<BluetoothDevice> _systemDevices = [];
+  
   List<ScanResult> _scanResults = [];
   BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
   late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
   late StreamSubscription<bool> _isScanningSubscription;
   late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 15);
+  Duration timeToScan = const Duration(seconds: 10);
   late double duration;
   late Timer _timer;
 
@@ -36,9 +44,10 @@ class _StartScandPageState extends State<StartScandPage> {
     });
 
     _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      _scanResults.addAll(results);
       results.forEach((element) {
-        print("${element.device.remoteId}; ${element.rssi}");
+        _scanResults.add(element);
+        if (allowedUUIDs.contains(element.device.id.toString())) {
+        }
       });
 /*       if (mounted) {
         setState(() {});
@@ -95,6 +104,47 @@ class _StartScandPageState extends State<StartScandPage> {
     });
   }
 
+ Future<void> _saveCSV() async {
+  if (_beaconsData.isNotEmpty) {
+    try {
+
+      var status = await Permission.storage.status; 
+
+      if (!status.isGranted) { 
+        await Permission.storage.request(); 
+      } 
+
+      Directory _directory = Directory("/storage/emulated/0/Download"); 
+
+      final exPath = _directory.path; 
+
+      String csvPath = "${exPath}/beacon_data.csv";
+      
+
+      File csvFile = File(csvPath);
+
+      List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();
+      
+      String csvContent = const ListToCsvConverter().convert(csvData);
+      
+      await csvFile.writeAsString(csvContent);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Arquivo CSV salvo em ${csvFile.path}")),
+      );
+    } catch (e) {
+      print("Erro ao salvar o arquivo CSV: $e");
+    }
+  } else {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Nenhum dado disponível para exportar")),
+    );
+  }
+}
+
+
+
   void showModalTurnOnBluetooth() {}
 
   @override
@@ -134,6 +184,12 @@ class _StartScandPageState extends State<StartScandPage> {
               : Column(
                 children: [
                   ElevatedButton(
+                    onPressed: () {
+                      _saveCSV();
+                    },
+                    child: Text("Exportar CSV"),
+                  ),
+                  ElevatedButton(
                       onPressed: () {
                         verifyBluetoothIsOn();
                       },
@@ -141,11 +197,50 @@ class _StartScandPageState extends State<StartScandPage> {
                     ),
                   if(_scanResults.isNotEmpty)
                     ElevatedButton(
-                        onPressed: () {
-                          _scanResults.forEach((element) {                            
-                            print("(${arguments['x']}; ${arguments['y']}) - ${element.device.remoteId} - ${element.rssi}");
-                          });
-                        },
+                      onPressed: () {
+                        Map<String, Map<String, List<int>>> groupedResults = {};
+
+                        _scanResults.forEach((element) {
+                          String coordinates = "(${arguments['x']}; ${arguments['y']})";
+                          String uuid = element.device.id.toString();
+                          int rssiValue = element.rssi;
+
+                          if (groupedResults.containsKey(coordinates)) {
+                            if (groupedResults[coordinates]!.containsKey(uuid)) {
+                              groupedResults[coordinates]![uuid]!.add(rssiValue);
+                            } else {
+                              groupedResults[coordinates]![uuid] = [rssiValue];
+                            }
+                          } else {
+                            groupedResults[coordinates] = {uuid: [rssiValue]};
+                          }
+                        });
+
+                        int maxRssis = groupedResults.values
+                            .map((devices) => devices.values.map((rssis) => rssis.length).reduce((a, b) => a > b ? a : b))
+                            .reduce((a, b) => a > b ? a : b);
+
+                        groupedResults.forEach((coordinates, devices) {
+                          String uuidsString = devices.keys.join(";");
+                          print("$coordinates;$uuidsString");
+
+                          for (int i = 0; i < maxRssis; i++) {
+                            List<String> rssis = [];
+
+                            devices.forEach((uuid, values) {
+                              if (i < values.length) {
+                                rssis.add(values[i].toString());
+                              } else {
+                                rssis.add("-");
+                              }
+                            });
+
+                            _beaconsData.add("$coordinates;${rssis.join(";")}");
+                          }
+                          print("ARRAY GLOBAL:");
+                          print(_beaconsData);
+                        });
+                      },
                         child: const Text("Salvar dados"),
                       ),
                 ],
