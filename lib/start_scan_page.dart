@@ -18,7 +18,7 @@ class StartScandPage extends StatefulWidget {
 List<String> _beaconsData = [];
 
 class _StartScandPageState extends State<StartScandPage> {
-  final List<String> allowedUUIDs = ["00:FA:B6:1D:DD:EF", "00:FA:B6:1D:DD:E0", "00:FA:B6:1D:DD:FE"];
+  final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
   List<BluetoothDevice> _systemDevices = [];
   
   List<ScanResult> _scanResults = [];
@@ -27,7 +27,7 @@ class _StartScandPageState extends State<StartScandPage> {
   late StreamSubscription<bool> _isScanningSubscription;
   late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 10);
+  Duration timeToScan = const Duration(seconds: 30);
   late double duration;
   late Timer _timer;
 
@@ -204,6 +204,11 @@ class _StartScandPageState extends State<StartScandPage> {
                           String coordinates = "${arguments['x']}; ${arguments['y']}";
                           String uuid = element.device.id.toString();
                           int rssiValue = element.rssi;
+
+                          print("ALOOOOO");
+                          print(uuid);
+                          print(coordinates);
+                          print(rssiValue);
 
                           if (groupedResults.containsKey(coordinates)) {
                             if (groupedResults[coordinates]!.containsKey(uuid)) {

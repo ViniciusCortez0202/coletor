@@ -15,7 +15,7 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
-  final List<String> allowedUUIDs = ["00:FA:B6:1D:DD:EF", "00:FA:B6:1D:DD:E0", "00:FA:B6:1D:DD:FE"];
+  final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
   List<BluetoothDevice> _systemDevices = [];
   
   List<ScanResult> _scanResults = [];
@@ -23,8 +23,9 @@ class _PositionPageState extends State<PositionPage> {
   late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
   late StreamSubscription<bool> _isScanningSubscription;
   late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
+  Map<String, List<int>> groupedResults = {};
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 10);
+  Duration timeToScan = const Duration(seconds: 7);
   late double duration;
   late Timer _timer;
 
@@ -37,8 +38,42 @@ class _PositionPageState extends State<PositionPage> {
       if (!_isScanning) {
         startScan();
       }
+
+      print("NOVA RELAÇÃO:");
+      print(groupedResults);
+
+
+      List<int?> averages = [];
+
+      groupedResults.values.forEach((list) {
+        double sum = 0;
+        list.forEach((num) {
+          sum += num;
+        });
+        double average = sum / list.length;
+        averages.add(average.toInt());
+      });
+
+   
+        // Verifica se o array tem menos de três elementos
+      if (averages.length < 3) {
+        // Calcula o número de elementos que precisam ser adicionados
+        int elementsToAdd = 3 - averages.length;
+        
+        // Adiciona null para completar o averages
+        for (int i = 0; i < elementsToAdd; i++) {
+          averages.add(null);
+        }
+      }
+      print("Médias: $averages");
+
+      fetchData(averages);
+
+      groupedResults.clear();
+      averages.clear();
     });
 
+    print("-----------------");
     _adapterStateStateSubscription =
         FlutterBluePlus.adapterState.listen((state) {
       _adapterState = state;
@@ -65,9 +100,13 @@ class _PositionPageState extends State<PositionPage> {
       },
     );
 
+    print("CHEGANDO AQUIIIIII!");
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as List;
       setState(() {
+        print("OLA TA CHEGANDO AQUI O RESULTADO------");
+        print(data);
         currentX = data[0];
         currentY = data[1];
       });
@@ -87,47 +126,21 @@ class _PositionPageState extends State<PositionPage> {
 
     _scanResults.clear();
 
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {element
-      print("O ARRAY DE RSSIS:");
-      print(rssisArrays);
-      Map<String, List<int>> groupedResults = {};
+  _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
+    results.forEach((element) {
+      if (allowedUUIDs.contains(element.device.id.toString())) {
+        String uuid = element.device.id.toString();
+        int rssiValue = element.rssi; 
 
-      results.forEach((element) {
-        if (allowedUUIDs.contains(element.device.id.toString())) {
-          String uuid = element.device.id.toString();
-          int rssiValue = element.rssi;
-
-          if (groupedResults.containsKey(uuid)) {
-            groupedResults[uuid]!.add(rssiValue);
-          } else {
-            groupedResults[uuid] = [rssiValue];
-         }
-        }
-        
-      });
-
-      List<int?> rssisArrays = [];
-      
-      groupedResults.values.forEach((rssis) {
-        if (rssis.isNotEmpty) {
-          rssisArrays.add(rssis[0]);
+        if (groupedResults.containsKey(uuid)) {
+          groupedResults[uuid]!.add(rssiValue);
         } else {
-          rssisArrays.add(null);
+          groupedResults[uuid] = [rssiValue];
         }
-      });
-
-      int maxLength = 3;
-
-      rssisArrays.length < maxLength
-          ? rssisArrays.addAll(List<int?>.filled(maxLength - rssisArrays.length, null))
-          : null;
-
-      rssisArrays = rssisArrays.sublist(0, maxLength);
-
-      fetchData(rssisArrays);
-    }, onError: (e) {
-      print("Erro ao escanear: $e");
+      }
     });
+
+  }, onError: (e) {});
   }
 
 
