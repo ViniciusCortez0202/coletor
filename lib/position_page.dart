@@ -112,7 +112,7 @@ class _PositionPageState extends State<PositionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final int rows = 4;
+    final int rows = 3;
     final int cols = 3;
 
     return Scaffold(
