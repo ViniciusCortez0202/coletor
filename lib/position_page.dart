@@ -1,9 +1,20 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:async';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter_beacon/flutter_beacon.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:open_settings/open_settings.dart';
+import 'package:coletor/permission_services.dart';
+
+import 'package:coletor/controller.dart';
+import 'package:coletor/permission_services.dart';
 
 class PositionPage extends StatefulWidget {
   const PositionPage({Key? key}) : super(key: key);
@@ -15,134 +26,156 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
-  final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
-  List<BluetoothDevice> _systemDevices = [];
-  
-  List<ScanResult> _scanResults = [];
-  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
-  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
-  late StreamSubscription<bool> _isScanningSubscription;
-  late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
-  Map<String, List<int>> groupedResults = {};
-  bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 7);
-  late double duration;
-  late Timer _timer;
+  final List<String> allowedUUIDs = [
+    "00:FA:B6:1D:DE:07",
+    "00:FA:B6:1D:DD:F8",
+    "00:FA:B6:12:E8:86"
+  ];
+  String beaconUUID = 'F7826DA6-4FA2-4E98-8024-BC5B71E0893E';
+  StreamSubscription<RangingResult>? _streamRanging;
+  StreamSubscription<BluetoothState>? _streamBluetooth;
+  //String beaconUUID = '00:FA:B6:1D:DE:07';
 
   @override
   void initState() {
-    duration = timeToScan.inSeconds.toDouble();
     super.initState();
-    
-    Timer.periodic(Duration(seconds: 10), (timer) {
-      if (!_isScanning) {
-        startScan();
-      }
-
-      print("NOVA RELAÇÃO:");
-      print(groupedResults);
-
-
-      List<int?> averages = [];
-
-      groupedResults.values.forEach((list) {
-        double sum = 0;
-        list.forEach((num) {
-          sum += num;
-        });
-        double average = sum / list.length;
-        averages.add(average.toInt());
-      });
-
-   
-        // Verifica se o array tem menos de três elementos
-      if (averages.length < 3) {
-        // Calcula o número de elementos que precisam ser adicionados
-        int elementsToAdd = 3 - averages.length;
-        
-        // Adiciona null para completar o averages
-        for (int i = 0; i < elementsToAdd; i++) {
-          averages.add(null);
-        }
-      }
-      print("Médias: $averages");
-
-      fetchData(averages);
-
-      groupedResults.clear();
-      averages.clear();
-    });
-
-    print("-----------------");
-    _adapterStateStateSubscription =
-        FlutterBluePlus.adapterState.listen((state) {
-      _adapterState = state;
-    });
-
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      results.forEach((element) {
-        if (allowedUUIDs.contains(element.device.id.toString())) {
-        _scanResults.add(element);
-        }
-      });
-    }, onError: (e) {});
-
-    _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
-      _isScanning = state;
-    });
+    // _checkLocationPermission();
+    // _checkBluetoothPermission();
+    listeningState();
   }
 
-  Future<void> fetchData(List<int?> rssiValues) async {
-    final response = await http.get(
-      Uri.parse('https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
-
-    print("CHEGANDO AQUIIIIII!");
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List;
-      setState(() {
-        print("OLA TA CHEGANDO AQUI O RESULTADO------");
-        print(data);
-        currentX = data[0];
-        currentY = data[1];
-      });
-    } else {
-      throw Exception('Falha ao carregar os dados');
-    }
-  }
-
-  Future<void> startScan() async {
+    _checkLocationPermission() async {
     try {
-      await FlutterBluePlus.startScan(timeout: timeToScan);
-      duration = timeToScan.inSeconds.toDouble();
-      print('Scanning for devices...');
-    } catch (e) {
-      print("Erro ao iniciar o scan: $e");
-    }
-
-    _scanResults.clear();
-
-  _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-    results.forEach((element) {
-      if (allowedUUIDs.contains(element.device.id.toString())) {
-        String uuid = element.device.id.toString();
-        int rssiValue = element.rssi; 
-
-        if (groupedResults.containsKey(uuid)) {
-          groupedResults[uuid]!.add(rssiValue);
-        } else {
-          groupedResults[uuid] = [rssiValue];
+      bool status = await PermissionService.checkLocationPermission();
+      if (status) {
+        print(Permission.bluetoothScan.status);
+      } else {
+        print(Permission.bluetoothScan.status);
+        bool locationPermissionStatus = await PermissionService.requestLocationPermission(context);
+        if (locationPermissionStatus) {
+          showBluetoothDialog();
         }
       }
-    });
-
-  }, onError: (e) {});
+    } catch (e) {
+      print(e);
+    }
   }
 
+    _checkBluetoothPermission() async {
+    try {
+      bool status = await PermissionService.checkBluetoothPermission();
+      if (status) {
+        print('Bluetooth Permission: ${Permission.bluetoothScan.status}');
+      } else {
+        print('Bluetooth Permission: ${Permission.bluetoothScan.status}');
+        bool bluetoothPermissionStatus =
+            await PermissionService.requestBluetoothPermission(context);
+        if (bluetoothPermissionStatus) {
+          showBluetoothDialog();
+        }
+      }
+    } catch (e) {}
+  }
+
+  void listeningState() async {
+    print('Listening to bluetooth state');
+    await flutterBeacon.initializeAndCheckScanning;
+    _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
+      print('Bluetooth State: $state');
+      if (state == BluetoothState.stateOn) {
+        initScanBeacon();
+      } else {
+        print("TA CHEGANDO AQUI OH.....");
+        _streamRanging!.pause();
+      }
+    });
+  }
+
+  initScanBeacon() async {
+    final regions = <Region>[];
+
+    regions.add(
+        Region(identifier: 'com.beacon', proximityUUID: "F7826EE6-4FA2-4E98-8024-BC5B71E0893E"));
+
+    _streamRanging = flutterBeacon.ranging(regions).listen((RangingResult result) {
+      if (result != null && result.beacons.isNotEmpty) {
+        debugPrint('Found beacons: ${result.beacons.length}');
+        List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
+        debugPrint('RSSIs: $rssis');
+    } else {
+      debugPrint('No beacons found');
+    }
+    });
+  }
+
+  showBluetoothDialog() {
+    print('bluetooth dialog');
+    if (Platform.isIOS) {
+      return CupertinoAlertDialog(
+        title: const Text("UJ Wayfinder Location"),
+        content: const Text(
+            'App wants your bluetooth to be turn ON to enable scanning of beacon around you to enhance your navigation experience.'),
+        actions: <Widget>[
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text("Yes"),
+            onPressed: () async {
+              Navigator.pop(context);
+              await Permission.bluetoothScan.request();
+              Navigator.pop(context);
+            },
+          ),
+          CupertinoDialogAction(
+            child: const Text("No"),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          )
+        ],
+      );
+    } else {
+      return showDialog(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              content: const Text(
+                  'App wants your bluetooth to be turn ON to enable scanning of beacon around you to enhance your navigation experience.'),
+              actions: [
+                TextButton(
+                    onPressed: () async {
+                      OpenSettings.openBluetoothSetting();
+                    },
+                    child: const Text('Allow')),
+                TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Deny'))
+              ],
+            );
+          });
+    }
+  }
+
+  // Future<void> fetchData(List<int?> rssiValues) async {
+  //   final response = await http.get(
+  //     Uri.parse(
+  //         'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //     },
+  //   );
+
+  //   if (response.statusCode == 200) {
+  //     final data = jsonDecode(response.body) as List;
+  //     setState(() {
+  //       currentX = data[0];
+  //       currentY = data[1];
+  //     });
+  //   } else {
+  //     throw Exception('Falha ao carregar os dados');
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +193,6 @@ class _PositionPageState extends State<PositionPage> {
           ),
           itemCount: rows * cols,
           itemBuilder: (BuildContext context, int index) {
-            
             final int row = index ~/ cols;
             final int col = index % cols;
 
@@ -175,7 +207,7 @@ class _PositionPageState extends State<PositionPage> {
               },
               child: Container(
                 margin: EdgeInsets.all(4),
-                color: isCurrentPosition ? Colors.red : Colors.blue, 
+                color: isCurrentPosition ? Colors.red : Colors.blue,
                 child: Center(
                   child: Text(
                     '($col, $row)',

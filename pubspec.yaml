@@ -41,6 +41,12 @@ dependencies:
   permission_handler: ^11.3.0
   http: ^1.2.1
 
+  flutter_beacon: ^0.5.1
+  geolocator: ^9.0.2
+  app_settings: ^4.2.0
+  open_settings: ^2.0.2
+  get: ^4.3.8
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
