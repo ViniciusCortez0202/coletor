@@ -56,7 +56,7 @@ class _PositionPageState extends State<PositionPage> {
     });
   }
 
-  List<int> lastRssis = [];
+  List<List<int>> lastRssisList = [];
 
   initScanBeacon() async {
     final regions = <Region>[];
@@ -68,17 +68,56 @@ class _PositionPageState extends State<PositionPage> {
       if (result != null && result.beacons.isNotEmpty) {
         debugPrint('Found beacons: ${result.beacons.length}');
         List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
-        lastRssis = rssis; // Atualiza o último array de RSSIs detectado
         debugPrint('RSSIs: $rssis');
+        while (rssis.length < 3) {
+          rssis.add(0);
+        }
+
+        lastRssisList.add(rssis);
     } else {
       debugPrint('No beacons found');
     }
     });
 
     Timer.periodic(Duration(seconds: 4), (timer) {
-    fetchData(lastRssis); // Chama fetchData com o último array de RSSIs detectado
+      if (lastRssisList.isNotEmpty) {
+        final medianRssis = calculateMedian(lastRssisList);
+        debugPrint('MEDIAN RSSIs: $medianRssis');
+        fetchData(medianRssis); // Chama fetchData com a mediana dos RSSIs detectados
+        lastRssisList.clear(); // Limpa a lista de arrays de RSSIs após enviar para fetchData
+      }
     });
   }
+
+  List<int> calculateMedian(List<List<int>> rssisList) {
+  final List<int> medians = [];
+
+  // Itera sobre as posições dos RSSIs
+  for (int i = 0; i < rssisList[0].length; i++) {
+    final List<int> values = [];
+
+    // Coleta os RSSIs na mesma posição de cada array interno
+    for (final rssis in rssisList) {
+      values.add(rssis[i]);
+    }
+
+    // Ordena os valores de RSSI
+    values.sort();
+
+    final int size = values.length;
+    if (size % 2 == 0) {
+      // Se houver um número par de valores, a mediana é a média dos dois valores do meio
+      final int mid = size ~/ 2;
+      medians.add((values[mid - 1] + values[mid]) ~/ 2);
+    } else {
+      // Se houver um número ímpar de valores, a mediana é o valor do meio
+      final int mid = size ~/ 2;
+      medians.add(values[mid]);
+    }
+  }
+
+  return medians;
+}
 
   Future<void> fetchData(List<int?> rssiValues) async {
     if (!_isMounted) return;

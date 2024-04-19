@@ -31,7 +31,7 @@ class _StartScandPageState extends State<StartScandPage> {
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 10);
+  Duration timeToScan = const Duration(seconds: 60);
   late double duration;
   late Timer _timer;
 
@@ -71,7 +71,7 @@ class _StartScandPageState extends State<StartScandPage> {
     _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
       print('Bluetooth State: $state');
       if (state == BluetoothState.stateOn) {
-        Timer(Duration(seconds: 15), () {
+        Timer(Duration(seconds: 60), () {
           _streamRanging?.cancel();
           _streamBluetooth?.cancel();
           _timer.cancel();
