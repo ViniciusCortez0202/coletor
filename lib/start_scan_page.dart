@@ -1,12 +1,19 @@
 import 'dart:async';
-
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:csv/csv.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart'; 
+import 'package:flutter_beacon/flutter_beacon.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:open_settings/open_settings.dart';
+import 'package:coletor/permission_services.dart';
+import 'package:coletor/controller.dart';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -19,15 +26,12 @@ List<String> _beaconsData = [];
 
 class _StartScandPageState extends State<StartScandPage> {
   final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
-  List<BluetoothDevice> _systemDevices = [];
   
-  List<ScanResult> _scanResults = [];
-  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
-  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
-  late StreamSubscription<bool> _isScanningSubscription;
-  late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
+  List<String> _scanResults = [];
+  StreamSubscription<RangingResult>? _streamRanging;
+  StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 30);
+  Duration timeToScan = const Duration(seconds: 10);
   late double duration;
   late Timer _timer;
 
@@ -35,47 +39,52 @@ class _StartScandPageState extends State<StartScandPage> {
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
     super.initState();
-    _adapterStateStateSubscription =
-        FlutterBluePlus.adapterState.listen((state) {
-      _adapterState = state;
-      /*  if (mounted) {
-        setState(() {});
-      } */
-    });
-
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      results.forEach((element) {
-        if (allowedUUIDs.contains(element.device.id.toString())) {
-        _scanResults.add(element);
-        }
-      });
-/*       if (mounted) {
-        setState(() {});
-      } */
-    }, onError: (e) {});
-
-    _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
-      _isScanning = state;
-/*       if (mounted) {
-        setState(() {});
-      } */
-    });
   }
 
   @override
   void dispose() {
-    _scanResultsSubscription.cancel();
-    _adapterStateStateSubscription.cancel();
     super.dispose();
   }
 
-  Future<void> startScan() async {
-    try {
-      await FlutterBluePlus.startScan(timeout: timeToScan);
-      duration = timeToScan.inSeconds.toDouble();
-    } catch (e) {
-      print("Erro to start scand");
+  initScanBeacon() async {
+    final regions = <Region>[];
+
+    regions.add(
+        Region(identifier: 'com.beacon', proximityUUID: "F7826DA6-4FA2-4E98-8024-BC5B71E0893E"));
+
+    _streamRanging = flutterBeacon.ranging(regions).listen((RangingResult result) {
+      if (result != null && result.beacons.isNotEmpty) {
+        _isScanning = true;
+        debugPrint('Found beacons: ${result.beacons.length}');
+        List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
+        debugPrint('RSSIs: $rssis');
+        _scanResults.add(rssis.join(';'));
+    } else {
+      debugPrint('No beacons found');
     }
+    });
+  }
+
+  Future<void> startScan() async {
+    print('Listening to bluetooth state');
+    await flutterBeacon.initializeAndCheckScanning;
+    _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
+      print('Bluetooth State: $state');
+      if (state == BluetoothState.stateOn) {
+        Timer(Duration(seconds: 15), () {
+          _streamRanging?.cancel();
+          _streamBluetooth?.cancel();
+          _timer.cancel();
+          setState(() {
+            _isScanning = false;
+          });
+        });
+        initScanBeacon();
+      } else {
+        _streamRanging?.pause();
+      }
+    });
+
     if (mounted) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         setState(() {
@@ -85,31 +94,12 @@ class _StartScandPageState extends State<StartScandPage> {
     }
   }
 
-  Future onStopPressed() async {
-    try {
-      await FlutterBluePlus.systemDevices;
-      await FlutterBluePlus.stopScan();
-    } catch (e) {
-      print("Stop Scan Error");
-    }
-  }
-
-  void verifyBluetoothIsOn() {
-    FlutterBluePlus.adapterState.listen((state) {
-      if (state != BluetoothAdapterState.on) {
-        const SnackBar(content: Text("Por favor, ative o bluetooth"));
-      } else {
-        startScan();
-      }
-    });
-  }
-
  Future<void> _saveCSV() async {
   if (_beaconsData.isNotEmpty) {
     try {
 
       var status = await Permission.storage.status; 
-
+      print("STATUS: $status");
       if (!status.isGranted) { 
         await Permission.storage.request(); 
       } 
@@ -142,10 +132,6 @@ class _StartScandPageState extends State<StartScandPage> {
     );
   }
 }
-
-
-
-  void showModalTurnOnBluetooth() {}
 
   @override
   Widget build(BuildContext context) {
@@ -191,60 +177,22 @@ class _StartScandPageState extends State<StartScandPage> {
                   ),
                   ElevatedButton(
                       onPressed: () {
-                        verifyBluetoothIsOn();
+                        startScan();
                       },
                       child: const Text("Scan"),
                     ),
                   if(_scanResults.isNotEmpty)
                     ElevatedButton(
                       onPressed: () {
-                        Map<String, Map<String, List<int>>> groupedResults = {};
-
                         _scanResults.forEach((element) {
                           String coordinates = "${arguments['x']}; ${arguments['y']}";
-                          String uuid = element.device.id.toString();
-                          int rssiValue = element.rssi;
-
-                          print("ALOOOOO");
-                          print(uuid);
-                          print(coordinates);
-                          print(rssiValue);
-
-                          if (groupedResults.containsKey(coordinates)) {
-                            if (groupedResults[coordinates]!.containsKey(uuid)) {
-                              groupedResults[coordinates]![uuid]!.add(rssiValue);
-                            } else {
-                              groupedResults[coordinates]![uuid] = [rssiValue];
-                            }
-                          } else {
-                            groupedResults[coordinates] = {uuid: [rssiValue]};
-                          }
-                        });
-
-                        int maxRssis = groupedResults.values
-                            .map((devices) => devices.values.map((rssis) => rssis.length).reduce((a, b) => a > b ? a : b))
-                            .reduce((a, b) => a > b ? a : b);
-
-                        groupedResults.forEach((coordinates, devices) {
-                          String uuidsString = devices.keys.join(";");
-                          print("$coordinates;$uuidsString");
-
-                          for (int i = 0; i < maxRssis; i++) {
-                            List<String> rssis = [];
-
-                            devices.forEach((uuid, values) {
-                              if (i < values.length) {
-                                rssis.add(values[i].toString());
-                              } else {
-                                rssis.add("-");
-                              }
-                            });
-
-                            _beaconsData.add("$coordinates;${rssis.join(";")}");
-                          }
+                            print("ação salvar dados;");
+                            print(coordinates);
+                            print(element);
+                            _beaconsData.add("$coordinates;${element}");
+                          });
                           print("ARRAY GLOBAL:");
                           print(_beaconsData);
-                        });
                       },
                         child: const Text("Salvar dados"),
                       ),

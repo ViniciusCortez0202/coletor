@@ -26,6 +26,7 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
+  bool _isMounted = false;
   final List<String> allowedUUIDs = [
     "00:FA:B6:1D:DE:07",
     "00:FA:B6:1D:DD:F8",
@@ -38,7 +39,7 @@ class _PositionPageState extends State<PositionPage> {
   @override
   void initState() {
     super.initState();
-
+    _isMounted = true;
     listeningState();
   }
 
@@ -80,6 +81,8 @@ class _PositionPageState extends State<PositionPage> {
   }
 
   Future<void> fetchData(List<int?> rssiValues) async {
+    if (!_isMounted) return;
+
     final response = await http.get(
       Uri.parse(
           'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
@@ -97,6 +100,14 @@ class _PositionPageState extends State<PositionPage> {
     } else {
       throw Exception('Falha ao carregar os dados');
     }
+  }
+
+  @override
+  void dispose() {
+    _isMounted = false;
+    super.dispose();
+    _streamRanging?.cancel();
+    _streamBluetooth?.cancel();
   }
 
   @override
