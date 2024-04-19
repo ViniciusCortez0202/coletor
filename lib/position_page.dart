@@ -50,11 +50,12 @@ class _PositionPageState extends State<PositionPage> {
       if (state == BluetoothState.stateOn) {
         initScanBeacon();
       } else {
-        print("TA CHEGANDO AQUI OH.....");
         _streamRanging!.pause();
       }
     });
   }
+
+  List<int> lastRssis = [];
 
   initScanBeacon() async {
     final regions = <Region>[];
@@ -66,32 +67,37 @@ class _PositionPageState extends State<PositionPage> {
       if (result != null && result.beacons.isNotEmpty) {
         debugPrint('Found beacons: ${result.beacons.length}');
         List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
+        lastRssis = rssis; // Atualiza o último array de RSSIs detectado
         debugPrint('RSSIs: $rssis');
     } else {
       debugPrint('No beacons found');
     }
     });
+
+    Timer.periodic(Duration(seconds: 4), (timer) {
+    fetchData(lastRssis); // Chama fetchData com o último array de RSSIs detectado
+    });
   }
 
-  // Future<void> fetchData(List<int?> rssiValues) async {
-  //   final response = await http.get(
-  //     Uri.parse(
-  //         'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //   );
+  Future<void> fetchData(List<int?> rssiValues) async {
+    final response = await http.get(
+      Uri.parse(
+          'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
 
-  //   if (response.statusCode == 200) {
-  //     final data = jsonDecode(response.body) as List;
-  //     setState(() {
-  //       currentX = data[0];
-  //       currentY = data[1];
-  //     });
-  //   } else {
-  //     throw Exception('Falha ao carregar os dados');
-  //   }
-  // }
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List;
+      setState(() {
+        currentX = data[0];
+        currentY = data[1];
+      });
+    } else {
+      throw Exception('Falha ao carregar os dados');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
