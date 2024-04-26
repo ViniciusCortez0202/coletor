@@ -15,6 +15,7 @@ import 'package:coletor/permission_services.dart';
 import 'package:coletor/controller.dart';
 import 'package:coletor/permission_services.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:simple_kalman/simple_kalman.dart';
 
 class PositionPage extends StatefulWidget {
   const PositionPage({Key? key}) : super(key: key);
@@ -35,6 +36,7 @@ class _PositionPageState extends State<PositionPage> {
   String beaconUUID = 'F7826DA6-4FA2-4E98-8024-BC5B71E0893E';
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
+  final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   @override
   void initState() {
@@ -55,9 +57,7 @@ class _PositionPageState extends State<PositionPage> {
       }
     });
   }
-
-  List<List<int>> lastRssisList = [];
-
+  List<int> lastRssis = [];
   initScanBeacon() async {
     final regions = <Region>[];
 
@@ -68,23 +68,29 @@ class _PositionPageState extends State<PositionPage> {
       if (result != null && result.beacons.isNotEmpty) {
         debugPrint('Found beacons: ${result.beacons.length}');
         List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
-        debugPrint('RSSIs: $rssis');
-        while (rssis.length < 3) {
-          rssis.add(0);
-        }
 
-        lastRssisList.add(rssis);
+        List<double> filteredRssis = rssis.map((rssi) => kalman.filtered(rssi.toDouble())).toList();
+
+        List<int> filteredRssisInt = filteredRssis.map((value) => value.toInt()).toList();
+
+        debugPrint('RSSIs: $rssis');
+        debugPrint('Filtered RSSIs Int: $filteredRssisInt');
+        
+        while (filteredRssisInt.length < 3) {
+          filteredRssisInt.add(0);
+        }
+        lastRssis = filteredRssisInt;
+
     } else {
       debugPrint('No beacons found');
     }
     });
 
     Timer.periodic(Duration(seconds: 4), (timer) {
-      if (lastRssisList.isNotEmpty) {
-        final medianRssis = calculateMedian(lastRssisList);
-        debugPrint('MEDIAN RSSIs: $medianRssis');
-        fetchData(medianRssis); // Chama fetchData com a mediana dos RSSIs detectados
-        lastRssisList.clear(); // Limpa a lista de arrays de RSSIs após enviar para fetchData
+      if (lastRssis.isNotEmpty) {
+
+        fetchData(lastRssis);
+        lastRssis.clear(); 
       }
     });
   }

@@ -14,6 +14,7 @@ import 'package:coletor/controller.dart';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:simple_kalman/simple_kalman.dart';
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -31,9 +32,10 @@ class _StartScandPageState extends State<StartScandPage> {
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 60);
+  Duration timeToScan = const Duration(seconds: 120);
   late double duration;
   late Timer _timer;
+  final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.3);
 
   @override
   void initState() {
@@ -57,8 +59,13 @@ class _StartScandPageState extends State<StartScandPage> {
         _isScanning = true;
         debugPrint('Found beacons: ${result.beacons.length}');
         List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
+
+        List<double> filteredRssis = rssis.map((rssi) => kalman.filtered(rssi.toDouble())).toList();
+
+        List<int> filteredRssisInt = filteredRssis.map((value) => value.toInt()).toList();
+
         debugPrint('RSSIs: $rssis');
-        _scanResults.add(rssis.join(';'));
+        _scanResults.add(filteredRssisInt.join(';'));
     } else {
       debugPrint('No beacons found');
     }
@@ -71,7 +78,7 @@ class _StartScandPageState extends State<StartScandPage> {
     _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
       print('Bluetooth State: $state');
       if (state == BluetoothState.stateOn) {
-        Timer(Duration(seconds: 60), () {
+        Timer(Duration(seconds: 120), () {
           _streamRanging?.cancel();
           _streamBluetooth?.cancel();
           _timer.cancel();
@@ -108,7 +115,7 @@ class _StartScandPageState extends State<StartScandPage> {
 
       final exPath = _directory.path; 
 
-      String csvPath = "${exPath}/beacon_data.csv";
+      String csvPath = "${exPath}/beacon_data_k.csv";
       
 
       File csvFile = File(csvPath);

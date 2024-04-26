@@ -46,6 +46,7 @@ dependencies:
   app_settings: ^4.2.0
   open_settings: ^2.0.2
   get: ^4.3.8
+  simple_kalman: ^1.0.2
 
 dev_dependencies:
   flutter_test:
