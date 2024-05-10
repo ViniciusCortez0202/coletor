@@ -64,4 +64,6 @@ flutter {
     source '../..'
 }
 
-dependencies {}
+dependencies {
+    implementation 'io.kontakt.mvn:sdk:7.0.12.2'
+}

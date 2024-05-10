@@ -58,6 +58,11 @@ class _PositionPageState extends State<PositionPage> {
     });
   }
   List<int> lastRssis = [];
+
+  List<int> rss1Values = [];
+  List<int> rss2Values = [];
+  List<int> rss3Values = [];
+
   initScanBeacon() async {
     final regions = <Region>[];
 
@@ -69,29 +74,39 @@ class _PositionPageState extends State<PositionPage> {
         debugPrint('Found beacons: ${result.beacons.length}');
         List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
 
-        List<double> filteredRssis = rssis.map((rssi) => kalman.filtered(rssi.toDouble())).toList();
+        //List<double> filteredRssis = rssis.map((rssi) => kalman.filtered(rssi.toDouble())).toList();
 
-        List<int> filteredRssisInt = filteredRssis.map((value) => value.toInt()).toList();
+        //List<int> filteredRssisInt = filteredRssis.map((value) => value.toInt()).toList();
 
-        debugPrint('RSSIs: $rssis');
-        debugPrint('Filtered RSSIs Int: $filteredRssisInt');
+        // debugPrint('RSSIs: $rssis');
+        // debugPrint('Filtered RSSIs Int: $filteredRssisInt');
         
-        while (filteredRssisInt.length < 3) {
-          filteredRssisInt.add(0);
+        while (rssis.length < 3) {
+          rssis.add(0);
         }
-        lastRssis = filteredRssisInt;
+        //lastRssis = filteredRssisInt;
+
+        rss1Values.add(rssis[0]);
+        rss2Values.add(rssis[1]);
+        rss3Values.add(rssis[2]);
 
     } else {
       debugPrint('No beacons found');
     }
     });
 
-    Timer.periodic(Duration(seconds: 4), (timer) {
-      if (lastRssis.isNotEmpty) {
+    Timer.periodic(Duration(seconds: 10), (timer) {
+        int averageRss1 = (rss1Values.reduce((a, b) => a + b) / rss1Values.length).round();
+        int averageRss2 = (rss2Values.reduce((a, b) => a + b) / rss2Values.length).round();
+        int averageRss3 = (rss3Values.reduce((a, b) => a + b) / rss3Values.length).round();
 
-        fetchData(lastRssis);
-        lastRssis.clear(); 
-      }
+        List<int> averageValues = [averageRss1, averageRss2, averageRss3];
+        print("Average RSSIs: $averageValues");
+        fetchData(averageValues);
+        //lastRssis.clear(); 
+        rss1Values.clear();
+        rss2Values.clear();
+        rss3Values.clear();
     });
   }
 
@@ -157,14 +172,16 @@ class _PositionPageState extends State<PositionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final int rows = 3;
-    final int cols = 3;
+    final int rows = 12;
+    final int cols = 6;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Position Page'),
-      ),
-      body: Center(
+return Scaffold(
+  appBar: AppBar(
+    title: Text('Position Page'),
+  ),
+  body: Stack(
+    children: [
+      Center(
         child: GridView.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
@@ -185,18 +202,30 @@ class _PositionPageState extends State<PositionPage> {
               },
               child: Container(
                 margin: EdgeInsets.all(4),
-                color: isCurrentPosition ? Colors.red : Colors.blue,
-                child: Center(
-                  child: Text(
-                    '($col, $row)',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                  ),
+                decoration: BoxDecoration(
+                  color: isCurrentPosition ? Colors.red : Colors.white,
+                  shape: BoxShape.circle,
                 ),
+                height: 50,  // Tamanho da bola (diâmetro)
+                width: 50,   // Mantém a largura e a altura iguais para formar um círculo perfeito
               ),
             );
           },
         ),
       ),
-    );
+      Opacity(
+        opacity: 0.8,  // Ajuste a opacidade conforme necessário para tornar a imagem mais transparente
+        child: Center(
+          child: Image.asset(
+            'assets/images/teste.png',  // Certifique-se de que o caminho esteja correto
+            fit: BoxFit.cover,
+            height: double.infinity,
+            width: double.infinity,
+          ),
+        ),
+      ),
+    ],
+  ),
+);
   }
 }
