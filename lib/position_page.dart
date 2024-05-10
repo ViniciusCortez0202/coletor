@@ -1,20 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:flutter_beacon/flutter_beacon.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
-
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:open_settings/open_settings.dart';
-import 'package:coletor/permission_services.dart';
-import 'package:coletor/controller.dart';
-import 'package:coletor/permission_services.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:simple_kalman/simple_kalman.dart';
 
 class PositionPage extends StatefulWidget {
@@ -28,12 +17,12 @@ class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
   bool _isMounted = false;
-  final List<String> allowedUUIDs = [
-    "00:FA:B6:1D:DE:07",
-    "00:FA:B6:1D:DD:F8",
-    "00:FA:B6:12:E8:86"
-  ];
-  String beaconUUID = 'F7826DA6-4FA2-4E98-8024-BC5B71E0893E';
+  int time_seconds = 10;
+
+  List<List<int?>> rssiValuesGeral = [];
+
+  static const platform = MethodChannel('samples.flutter.dev/beacons');
+
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
@@ -57,88 +46,79 @@ class _PositionPageState extends State<PositionPage> {
       }
     });
   }
-  List<int> lastRssis = [];
-
-  List<int> rss1Values = [];
-  List<int> rss2Values = [];
-  List<int> rss3Values = [];
-
   initScanBeacon() async {
-    final regions = <Region>[];
-
-    regions.add(
-        Region(identifier: 'com.beacon', proximityUUID: "F7826DA6-4FA2-4E98-8024-BC5B71E0893E"));
-
-    _streamRanging = flutterBeacon.ranging(regions).listen((RangingResult result) {
-      if (result != null && result.beacons.isNotEmpty) {
-        debugPrint('Found beacons: ${result.beacons.length}');
-        List<int> rssis = result.beacons.map((beacon) => beacon.rssi).toList();
-
-        //List<double> filteredRssis = rssis.map((rssi) => kalman.filtered(rssi.toDouble())).toList();
-
-        //List<int> filteredRssisInt = filteredRssis.map((value) => value.toInt()).toList();
-
-        // debugPrint('RSSIs: $rssis');
-        // debugPrint('Filtered RSSIs Int: $filteredRssisInt');
-        
-        while (rssis.length < 3) {
-          rssis.add(0);
-        }
-        //lastRssis = filteredRssisInt;
-
-        rss1Values.add(rssis[0]);
-        rss2Values.add(rssis[1]);
-        rss3Values.add(rssis[2]);
-
-    } else {
-      debugPrint('No beacons found');
-    }
-    });
-
-    Timer.periodic(Duration(seconds: 10), (timer) {
-        int averageRss1 = (rss1Values.reduce((a, b) => a + b) / rss1Values.length).round();
-        int averageRss2 = (rss2Values.reduce((a, b) => a + b) / rss2Values.length).round();
-        int averageRss3 = (rss3Values.reduce((a, b) => a + b) / rss3Values.length).round();
-
-        List<int> averageValues = [averageRss1, averageRss2, averageRss3];
-        print("Average RSSIs: $averageValues");
-        fetchData(averageValues);
-        //lastRssis.clear(); 
-        rss1Values.clear();
-        rss2Values.clear();
-        rss3Values.clear();
+    startRead();
+ 
+    Timer.periodic(Duration(seconds: 5), (timer) {
+        stopRead();
+        List<int> positions = [0, 1, 2];
+        List<int> medianValues = calculateMedianForPositions(rssiValuesGeral, positions);
+        print("MEDIAN VALUES: $medianValues");
+        rssiValuesGeral.clear();
+        fetchData(medianValues);
+        startRead();
     });
   }
 
-  List<int> calculateMedian(List<List<int>> rssisList) {
+    startRead() async {
+    try {
+      print("iniciando dnv??");
+      await platform.invokeMethod<String>('startListener');
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
+
+  List<int> calculateMedianForPositions(List<List<int?>> rssisList, List<int> positions) {
   final List<int> medians = [];
 
-  // Itera sobre as posições dos RSSIs
-  for (int i = 0; i < rssisList[0].length; i++) {
+  for (int position in positions) {
     final List<int> values = [];
 
-    // Coleta os RSSIs na mesma posição de cada array interno
     for (final rssis in rssisList) {
-      values.add(rssis[i]);
+      if (position < rssis.length) {
+        values.add(rssis[position] ?? 0); // Substitui valores nulos por 0
+      }
     }
 
-    // Ordena os valores de RSSI
-    values.sort();
+    if (values.isNotEmpty) {
+      values.sort();
 
-    final int size = values.length;
-    if (size % 2 == 0) {
-      // Se houver um número par de valores, a mediana é a média dos dois valores do meio
-      final int mid = size ~/ 2;
-      medians.add((values[mid - 1] + values[mid]) ~/ 2);
+      final int size = values.length;
+      if (size % 2 == 0) {
+        final int mid = size ~/ 2;
+        medians.add((values[mid - 1] + values[mid]) ~/ 2);
+      } else {
+        final int mid = size ~/ 2;
+        medians.add(values[mid]);
+      }
     } else {
-      // Se houver um número ímpar de valores, a mediana é o valor do meio
-      final int mid = size ~/ 2;
-      medians.add(values[mid]);
+      medians.add(0); // Adiciona 0 se não houver valores
     }
   }
 
   return medians;
 }
+
+  stopRead() async {
+    try {
+      final result = await platform.invokeMethod<List>('stopListener');
+
+      if (result != null) {
+      for (var map in result) {
+         List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+
+          while (valuesList.length < 3) {
+            valuesList.add(0);
+          }
+          print("RSSI VALUES: $valuesList");
+          rssiValuesGeral.add(valuesList);
+          }
+      }
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
 
   Future<void> fetchData(List<int?> rssiValues) async {
     if (!_isMounted) return;
