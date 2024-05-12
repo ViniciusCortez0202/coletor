@@ -6,6 +6,12 @@ import 'dart:io';
 import 'package:permission_handler/permission_handler.dart'; 
 import 'package:flutter_beacon/flutter_beacon.dart';
 import 'package:simple_kalman/simple_kalman.dart';
+import 'package:http/http.dart' as http;
+
+// Pacotes para a obtenção dos dados magéticos e cálculo da RSSI magnética
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:math';
+
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -23,21 +29,35 @@ class _StartScandPageState extends State<StartScandPage> {
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  int time_seconds = 10;
-  Duration timeToScan = const Duration(seconds: 10);
+  int time_seconds = 120;
+  Duration timeToScan = const Duration(seconds: 120);
   late double duration;
   late Timer _timer;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.3);
   static const platform = MethodChannel('samples.flutter.dev/beacons');
 
+  //Lista de valores do sensor magnético
+  // List<MagnetometerEvent> _magnetometerValues = [];
+  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+
   @override
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
+
+    // _magnetometerSubscription = magnetometerEvents.listen((event){
+    //   setState((){
+    //     // _magnetometerValues = [event];
+    //     //_magnetometerValues.add(event);
+    //     // print(_magnetometerValues.last);
+    //   });
+    // });
+
     super.initState();
   }
 
   @override
   void dispose() {
+    //_magnetometerSubscription.cancel();
     super.dispose();
   }
 
@@ -70,6 +90,18 @@ class _StartScandPageState extends State<StartScandPage> {
     }
   }
 
+
+    Future<void> postData(List<int?> rssiValues) async {
+    final response = await http.get(
+      Uri.parse(
+          'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+  }
+
   startRead() async {
     try {
       _isScanning = true;
@@ -87,17 +119,34 @@ class _StartScandPageState extends State<StartScandPage> {
     try {
       final result = await platform.invokeMethod<List>('stopListener');
 
+      
+
       if (result != null) {
+      print("Quantidade de dados que chegou: ${result.length}");
       for (var map in result) {
          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
 
         while (valuesList.length < 3) {
           valuesList.add(0);
         }
-          _scanResults.add(valuesList.join(';'));
+
+        // List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
+       
+        // double magneticX    = _magnetometerValues.last.x;
+        // double magneticY    = _magnetometerValues.last.y;
+        // double magneticZ    = _magnetometerValues.last.z;
+        // double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+
+        // List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+
+        // List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+
+        _scanResults.add(valuesList.join(';'));
+
+        //_magnetometerValues.clear();
         }
       }
-
+      print("Quantidade de dados salvos: ${_scanResults.length}");
       _isScanning = false;
 
     } on PlatformException catch (e) {
@@ -199,6 +248,9 @@ class _StartScandPageState extends State<StartScandPage> {
                           String coordinates = "${arguments['x']}; ${arguments['y']}";
                             _beaconsData.add("$coordinates;${element}");
                           });
+
+                          _scanResults.clear();
+                          print("Quantidade de dados salvos: ${_beaconsData.length}");
                       },
                         child: const Text("Salvar dados"),
                       ),

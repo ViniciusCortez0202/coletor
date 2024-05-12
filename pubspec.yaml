@@ -47,6 +47,7 @@ dependencies:
   open_settings: ^2.0.2
   get: ^4.3.8
   simple_kalman: ^1.0.2
+  sensors_plus: ^5.0.1
 
 dev_dependencies:
   flutter_test:

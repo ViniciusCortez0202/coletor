@@ -49,7 +49,7 @@ class _PositionPageState extends State<PositionPage> {
   initScanBeacon() async {
     startRead();
  
-    Timer.periodic(Duration(seconds: 5), (timer) {
+    Timer.periodic(Duration(seconds: 10), (timer) {
         stopRead();
         List<int> positions = [0, 1, 2];
         List<int> medianValues = calculateMedianForPositions(rssiValuesGeral, positions);
@@ -152,8 +152,8 @@ class _PositionPageState extends State<PositionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final int rows = 12;
-    final int cols = 6;
+    final int rows = 9;
+    final int cols = 4;
 
 return Scaffold(
   appBar: AppBar(
@@ -183,27 +183,36 @@ return Scaffold(
               child: Container(
                 margin: EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: isCurrentPosition ? Colors.red : Colors.white,
-                  shape: BoxShape.circle,
+                  color: isCurrentPosition ? Colors.red : Colors.blue,
+                  shape: BoxShape.rectangle,
                 ),
                 height: 50,  // Tamanho da bola (diâmetro)
-                width: 50,   // Mantém a largura e a altura iguais para formar um círculo perfeito
+                width: 50,  
+                child: Center(
+                  child: Text(
+                    '($row, $col)',
+                    style: TextStyle(
+                      color: Colors.white,  // Cor do texto
+                      fontSize: 7,        // Tamanho do texto
+                    ),
+                  ),
+                ),
               ),
             );
           },
         ),
       ),
-      Opacity(
-        opacity: 0.8,  // Ajuste a opacidade conforme necessário para tornar a imagem mais transparente
-        child: Center(
-          child: Image.asset(
-            'assets/images/teste.png',  // Certifique-se de que o caminho esteja correto
-            fit: BoxFit.cover,
-            height: double.infinity,
-            width: double.infinity,
-          ),
-        ),
-      ),
+      // Opacity(
+      //   opacity: 0.8,  // Ajuste a opacidade conforme necessário para tornar a imagem mais transparente
+      //   child: Center(
+      //     child: Image.asset(
+      //       'assets/images/teste.png',  // Certifique-se de que o caminho esteja correto
+      //       fit: BoxFit.cover,
+      //       height: double.infinity,
+      //       width: double.infinity,
+      //     ),
+      //   ),
+      // ),
     ],
   ),
 );
