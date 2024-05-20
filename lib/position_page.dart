@@ -17,9 +17,9 @@ class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
   bool _isMounted = false;
-  int time_seconds = 10;
+  int time_seconds = 6;
 
-  List<List<int?>> rssiValuesGeral = [];
+  List<int> lastRssis = [];
 
   static const platform = MethodChannel('samples.flutter.dev/beacons');
 
@@ -49,13 +49,10 @@ class _PositionPageState extends State<PositionPage> {
   initScanBeacon() async {
     startRead();
  
-    Timer.periodic(Duration(seconds: 10), (timer) {
+    Timer.periodic(Duration(seconds: 6), (timer) {
         stopRead();
-        List<int> positions = [0, 1, 2];
-        List<int> medianValues = calculateMedianForPositions(rssiValuesGeral, positions);
-        print("MEDIAN VALUES: $medianValues");
-        rssiValuesGeral.clear();
-        fetchData(medianValues);
+        print("RSSIS ENVIADOS: $lastRssis");
+        fetchData(lastRssis);
         startRead();
     });
   }
@@ -111,8 +108,7 @@ class _PositionPageState extends State<PositionPage> {
           while (valuesList.length < 3) {
             valuesList.add(0);
           }
-          print("RSSI VALUES: $valuesList");
-          rssiValuesGeral.add(valuesList);
+          lastRssis = valuesList;
           }
       }
     } on PlatformException catch (e) {
