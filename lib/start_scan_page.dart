@@ -168,9 +168,7 @@ class _StartScandPageState extends State<StartScandPage> {
 
       final exPath = _directory.path; 
 
-      String csvPath = "${exPath}/beacon_data_k.csv";
-      
-
+      String csvPath = "${exPath}/beacon_data.csv";    
       File csvFile = File(csvPath);
 
       List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();

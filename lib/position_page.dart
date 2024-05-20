@@ -129,6 +129,7 @@ class _PositionPageState extends State<PositionPage> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as List;
+      print("DATA: $data ");
       setState(() {
         currentX = data[0];
         currentY = data[1];
@@ -167,13 +168,13 @@ return Scaffold(
             final int row = index ~/ cols;
             final int col = index % cols;
 
-            final bool isCurrentPosition = col == currentX && row == currentY;
+            final bool isCurrentPosition = row == currentX && col == currentY;
 
             return GestureDetector(
               onTap: () {
                 setState(() {
-                  currentX = col;
-                  currentY = row;
+                  currentX = row;
+                  currentY = col;
                 });
               },
               child: Container(
