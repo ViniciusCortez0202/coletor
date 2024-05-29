@@ -37,27 +37,26 @@ class _StartScandPageState extends State<StartScandPage> {
   static const platform = MethodChannel('samples.flutter.dev/beacons');
 
   //Lista de valores do sensor magnético
-  // List<MagnetometerEvent> _magnetometerValues = [];
-  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  List<MagnetometerEvent> _magnetometerValues = [];
+  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
 
-    // _magnetometerSubscription = magnetometerEvents.listen((event){
-    //   setState((){
-    //     // _magnetometerValues = [event];
-    //     //_magnetometerValues.add(event);
-    //     // print(_magnetometerValues.last);
-    //   });
-    // });
+    _magnetometerSubscription = magnetometerEvents.listen((event){
+      setState((){
+        _magnetometerValues = [event];
+        _magnetometerValues.add(event);
+      });
+    });
 
     super.initState();
   }
 
   @override
   void dispose() {
-    //_magnetometerSubscription.cancel();
+    _magnetometerSubscription.cancel();
     super.dispose();
   }
 
@@ -122,7 +121,6 @@ class _StartScandPageState extends State<StartScandPage> {
       
 
       if (result != null) {
-      print("Quantidade de dados que chegou: ${result.length}");
       for (var map in result) {
          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
 
@@ -130,23 +128,21 @@ class _StartScandPageState extends State<StartScandPage> {
           valuesList.add(0);
         }
 
-        // List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
+        List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
        
-        // double magneticX    = _magnetometerValues.last.x;
-        // double magneticY    = _magnetometerValues.last.y;
-        // double magneticZ    = _magnetometerValues.last.z;
-        // double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+        double magneticX    = _magnetometerValues.last.x;
+        double magneticY    = _magnetometerValues.last.y;
+        double magneticZ    = _magnetometerValues.last.z;
+        double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-        // List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+        List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
 
-        // List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+        List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
 
-        _scanResults.add(valuesList.join(';'));
-
-        //_magnetometerValues.clear();
+        _scanResults.add(bleWithMagnetic.join(';'));
         }
       }
-      print("Quantidade de dados salvos: ${_scanResults.length}");
+
       _isScanning = false;
 
     } on PlatformException catch (e) {
@@ -168,7 +164,7 @@ class _StartScandPageState extends State<StartScandPage> {
 
       final exPath = _directory.path; 
 
-      String csvPath = "${exPath}/beacon_data.csv";    
+      String csvPath = "${exPath}/beacon_datav2.csv";    
       File csvFile = File(csvPath);
 
       List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();

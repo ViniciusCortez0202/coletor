@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.kontakt.sdk.android.ble.configuration.ScanPeriod
+import com.kontakt.sdk.android.ble.configuration.ScanMode
 import com.kontakt.sdk.android.ble.manager.ProximityManager
 import com.kontakt.sdk.android.ble.manager.ProximityManagerFactory
 import com.kontakt.sdk.android.ble.manager.listeners.IBeaconListener
@@ -18,6 +19,9 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+
+import java.util.concurrent.TimeUnit
+import com.kontakt.sdk.android.common.util.SDKPreconditions.checkArgument
 
 
 class MainActivity : FlutterActivity() {
@@ -30,7 +34,8 @@ class MainActivity : FlutterActivity() {
         KontaktSDK.initialize("OJWPPKwLEuahTooyXDKxRkuiYMwQTbVZ")
         proximityManager = ProximityManagerFactory.create(this)
         proximityManager?.configuration()?.deviceUpdateCallbackInterval(10)
-            ?.scanPeriod(ScanPeriod.RANGING)
+            ?.deviceUpdateCallbackInterval(10)
+            ?.scanMode(ScanMode.LOW_LATENCY)
         proximityManager?.setIBeaconListener(createIBeaconListener())
     }
 
@@ -67,6 +72,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun createIBeaconListener(): IBeaconListener {
+        var updateCount = 0 // Variável para contar o número de atualizações
         return object : IBeaconListener {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
@@ -74,9 +80,12 @@ class MainActivity : FlutterActivity() {
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 //Log.i("Sample", "IBeacon discovered: " + iBeacons.toString());
+                //updateCount++
+                //Log.i("Sample", "Update count: $updateCount")
                 val map: HashMap<String?, Int?> = HashMap<String?, Int?>()
                 for (device in iBeacons) {
                     map[device.address] = device.rssi
+
                 }
                 values.add(map)
             }
