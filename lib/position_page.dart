@@ -66,33 +66,35 @@ class _PositionPageState extends State<PositionPage> {
 
   void initScanBeacon() async {
     Timer.periodic(Duration(seconds: 5), (timer) async {
-        startRead();
+      await stopRead();
 
-        Timer.periodic(Duration(seconds: 3), (timer) async {
-          await stopRead();
-        });
+      double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0 ? lastRssis[0].toDouble() : 0.0;
+      double rss2 = lastRssis.length > 1 ? lastRssis[1].toDouble() : 0.0;
+      double rss3 = lastRssis.length > 2 ? lastRssis[2].toDouble() : 0.0;
+      double magneticX = _magnetometerValues.last.x;
+      double magneticY = _magnetometerValues.last.y;
+      double magneticZ = _magnetometerValues.last.z;
+      double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-        double rss1 = lastRssis[0].toDouble();
-        double rss2 = lastRssis[1].toDouble();
-        double rss3 = lastRssis[2].toDouble();
-        double magneticX    = _magnetometerValues.last.x;
-        double magneticY    = _magnetometerValues.last.y;
-        double magneticZ    = _magnetometerValues.last.z;
-        double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+      var data = {
+        'rss1': rss1,
+        'rss2': rss2,
+        'rss3': rss3,
+        'magneticX': magneticX,
+        'magneticY': magneticY,
+        'magneticZ': magneticZ,
+        'magneticRssi': magneticRssi
+      };
 
-        var data = {
-          'rss1': rss1,
-          'rss2': rss2,
-          'rss3': rss3,
-          'magneticX': magneticX,
-          'magneticY': magneticY,
-          'magneticZ': magneticZ,
-          'magneticRssi': magneticRssi
-        };
+      print("ENVIANDO PARA API: $data");
+      fetchDataV2(lastRssis);
 
-        fetchData(data);
-        //fetchDataV2(lastRssis);
+      // Restart the read process for the next interval
+      startRead();
     });
+
+    // Start the initial read
+    startRead();
   }
 
     startRead() async {
@@ -150,7 +152,12 @@ class _PositionPageState extends State<PositionPage> {
     print("Mediana RSS2: $rss2Median");
     print("Mediana RSS3: $rss3Median");
 
-    lastRssis = [rss1List.last.toInt(), rss2List.last.toInt(), rss3List.last.toInt()];
+
+    int rss1 = rss1List.isNotEmpty && rss1List.length > 0 ? rss1List.last.toInt() : 0;
+    int rss2 = rss2List.isNotEmpty && rss2List.length > 0 ? rss2List.last.toInt() : 0;
+    int rss3 = rss3List.isNotEmpty && rss3List.length > 0 ? rss3List.last.toInt() : 0;
+
+    lastRssis = [rss1, rss2, rss3];
   
     rss1List.clear();
     rss2List.clear();
