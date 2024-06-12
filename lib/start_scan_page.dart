@@ -105,8 +105,8 @@ class _StartScandPageState extends State<StartScandPage> {
     try {
       _isScanning = true;
       await platform.invokeMethod<String>('startListener');
-      Future.delayed(Duration(seconds: time_seconds), () {
-        stopRead();
+      Future.delayed(Duration(seconds: time_seconds), () async {
+        await stopRead();
       });
 
     } on PlatformException catch (e) {

@@ -33,7 +33,7 @@ class MainActivity : FlutterActivity() {
         checkPermissions()
         KontaktSDK.initialize("OJWPPKwLEuahTooyXDKxRkuiYMwQTbVZ")
         proximityManager = ProximityManagerFactory.create(this)
-        proximityManager?.configuration()?.deviceUpdateCallbackInterval(10)
+        proximityManager?.configuration()
             ?.deviceUpdateCallbackInterval(10)
             ?.scanMode(ScanMode.LOW_LATENCY)
         proximityManager?.setIBeaconListener(createIBeaconListener())

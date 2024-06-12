@@ -6,6 +6,11 @@ import 'dart:async';
 import 'package:flutter_beacon/flutter_beacon.dart';
 import 'package:simple_kalman/simple_kalman.dart';
 
+// Pacotes para a obtenção dos dados magéticos e cálculo da RSSI magnética
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:math';
+
+
 class PositionPage extends StatefulWidget {
   const PositionPage({Key? key}) : super(key: key);
 
@@ -27,8 +32,20 @@ class _PositionPageState extends State<PositionPage> {
   StreamSubscription<BluetoothState>? _streamBluetooth;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
+  //Lista de valores do sensor magnético
+  List<MagnetometerEvent> _magnetometerValues = [];
+  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+
+
   @override
   void initState() {
+    _magnetometerSubscription = magnetometerEvents.listen((event){
+      setState((){
+        _magnetometerValues = [event];
+        _magnetometerValues.add(event);
+      });
+    });
+
     super.initState();
     _isMounted = true;
     listeningState();
@@ -46,61 +63,65 @@ class _PositionPageState extends State<PositionPage> {
       }
     });
   }
-  initScanBeacon() async {
-    startRead();
- 
-    Timer.periodic(Duration(seconds: 6), (timer) {
-        stopRead();
-        print("RSSIS ENVIADOS: $lastRssis");
-        fetchData(lastRssis);
+
+  void initScanBeacon() async {
+    Timer.periodic(Duration(seconds: 5), (timer) async {
         startRead();
+
+        Timer.periodic(Duration(seconds: 3), (timer) async {
+          await stopRead();
+        });
+
+        double rss1 = lastRssis[0].toDouble();
+        double rss2 = lastRssis[1].toDouble();
+        double rss3 = lastRssis[2].toDouble();
+        double magneticX    = _magnetometerValues.last.x;
+        double magneticY    = _magnetometerValues.last.y;
+        double magneticZ    = _magnetometerValues.last.z;
+        double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+
+        var data = {
+          'rss1': rss1,
+          'rss2': rss2,
+          'rss3': rss3,
+          'magneticX': magneticX,
+          'magneticY': magneticY,
+          'magneticZ': magneticZ,
+          'magneticRssi': magneticRssi
+        };
+
+        fetchData(data);
+        //fetchDataV2(lastRssis);
     });
   }
 
     startRead() async {
     try {
-      print("iniciando dnv??");
       await platform.invokeMethod<String>('startListener');
     } on PlatformException catch (e) {
       print(e);
     }
   }
 
-  List<int> calculateMedianForPositions(List<List<int?>> rssisList, List<int> positions) {
-  final List<int> medians = [];
-
-  for (int position in positions) {
-    final List<int> values = [];
-
-    for (final rssis in rssisList) {
-      if (position < rssis.length) {
-        values.add(rssis[position] ?? 0); // Substitui valores nulos por 0
-      }
-    }
-
-    if (values.isNotEmpty) {
-      values.sort();
-
-      final int size = values.length;
-      if (size % 2 == 0) {
-        final int mid = size ~/ 2;
-        medians.add((values[mid - 1] + values[mid]) ~/ 2);
-      } else {
-        final int mid = size ~/ 2;
-        medians.add(values[mid]);
-      }
-    } else {
-      medians.add(0); // Adiciona 0 se não houver valores
-    }
+  double median(List<int> values) {
+  if (values.isEmpty) return 0;
+  values.sort();
+  int middle = values.length ~/ 2;
+  if (values.length % 2 == 1) {
+    return values[middle].toDouble();
+  } else {
+    return ((values[middle - 1] + values[middle]) / 2).toDouble();
   }
-
-  return medians;
 }
 
-  stopRead() async {
+  List<int> rss1List = [];
+  List<int> rss2List = [];
+  List<int> rss3List = [];
+
+
+  Future<void> stopRead() async {
     try {
       final result = await platform.invokeMethod<List>('stopListener');
-
       if (result != null) {
       for (var map in result) {
          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
@@ -108,15 +129,75 @@ class _PositionPageState extends State<PositionPage> {
           while (valuesList.length < 3) {
             valuesList.add(0);
           }
-          lastRssis = valuesList;
+          rss1List.add(valuesList[0]);
+          rss2List.add(valuesList[1]);
+          rss3List.add(valuesList[2]);
           }
       }
     } on PlatformException catch (e) {
       print(e);
     }
+
+    double rss1Median = median(rss1List);
+    double rss2Median = median(rss2List);
+    double rss3Median = median(rss3List);
+
+    print("RSS1: $rss1List");
+    print("RSS2: $rss2List");
+    print("RSS3: $rss3List");
+
+    print("Mediana RSS1: $rss1Median");
+    print("Mediana RSS2: $rss2Median");
+    print("Mediana RSS3: $rss3Median");
+
+    lastRssis = [rss1List.last.toInt(), rss2List.last.toInt(), rss3List.last.toInt()];
+  
+    rss1List.clear();
+    rss2List.clear();
+    rss3List.clear();
   }
 
-  Future<void> fetchData(List<int?> rssiValues) async {
+  Future<void> fetchData(Map<String, double> data) async {
+    if (!_isMounted) return;
+    final response = await http.post(
+      Uri.parse('https://ble-fingerprinting-2369ef4e0fbf.herokuapp.com/predict'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(data),
+    );
+
+    if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        // Acessar os valores de coords para "ble"
+        final ble = data['ble'] as Map<String, dynamic>;
+        final bleCoords = ble['coords'] as String;
+        final bleCoordsValues = bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
+        final bleX = int.parse(bleCoordsValues[0].trim());
+        final bleY = int.parse(bleCoordsValues[1].trim());
+
+        print("BLE Coords: x = $bleX, y = $bleY");
+
+        // Acessar os valores de coords para "ble_mag"
+        final bleMag = data['ble_mag'] as Map<String, dynamic>;
+        final bleMagCoords = bleMag['coords'] as String;
+        final bleMagCoordsValues = bleMagCoords.replaceAll('(', '').replaceAll(')', '').split(',');
+        final bleMagX = int.parse(bleMagCoordsValues[0].trim());
+        final bleMagY = int.parse(bleMagCoordsValues[1].trim());
+
+        print("BLE Mag Coords: x = $bleMagX, y = $bleMagY");
+
+      setState(() {
+        currentX = bleX;
+        currentY = bleY;
+      });
+    } else {
+      throw Exception('Falha ao carregar os dados');
+    }
+  }
+
+    Future<void> fetchDataV2(List<int?> rssiValues) async {
     if (!_isMounted) return;
 
     final response = await http.get(
@@ -143,6 +224,7 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
+    _magnetometerSubscription.cancel();
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
   }
