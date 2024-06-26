@@ -56,7 +56,11 @@ class _ColectPageState extends State<ColectPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   OutlinedButton(
-                      onPressed: () {}, child: const Text("finalizar coleta")),
+                      onPressed: () {
+
+                        Navigator.of(context).pushNamed('/position', arguments: {
+                        });
+                      }, child: const Text("Estimar posição")),
                   const SizedBox(width: 20),
                   FilledButton(
                       onPressed: () {

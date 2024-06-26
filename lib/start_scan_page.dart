@@ -1,8 +1,17 @@
 import 'dart:async';
-
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:csv/csv.dart';
+import 'dart:io';
+import 'package:permission_handler/permission_handler.dart'; 
+import 'package:flutter_beacon/flutter_beacon.dart';
+import 'package:simple_kalman/simple_kalman.dart';
+import 'package:http/http.dart' as http;
+import 'package:sensors_plus/sensors_plus.dart';
+import 'dart:math';
+
+import 'dart:convert'; // Importação necessária para jsonEncode
+import 'package:http/http.dart' as http;
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -11,62 +20,66 @@ class StartScandPage extends StatefulWidget {
   State<StartScandPage> createState() => _StartScandPageState();
 }
 
+List<String> _beaconsData = [];
+
 class _StartScandPageState extends State<StartScandPage> {
-  List<BluetoothDevice> _systemDevices = [];
-  List<ScanResult> _scanResults = [];
-  BluetoothAdapterState _adapterState = BluetoothAdapterState.unknown;
-  late StreamSubscription<List<ScanResult>> _scanResultsSubscription;
-  late StreamSubscription<bool> _isScanningSubscription;
-  late StreamSubscription<BluetoothAdapterState> _adapterStateStateSubscription;
+  final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
+  
+  List<String> _scanResults = [];
+  StreamSubscription<RangingResult>? _streamRanging;
+  StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  Duration timeToScan = const Duration(seconds: 15);
+  int time_seconds = 60;
+  Duration timeToScan = const Duration(seconds: 60);
   late double duration;
   late Timer _timer;
+  final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.3);
+  static const platform = MethodChannel('samples.flutter.dev/beacons');
+
+  // Lista de valores do sensor magnético
+  List<MagnetometerEvent> _magnetometerValues = [];
+  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
-    super.initState();
-    _adapterStateStateSubscription =
-        FlutterBluePlus.adapterState.listen((state) {
-      _adapterState = state;
-      /*  if (mounted) {
-        setState(() {});
-      } */
-    });
 
-    _scanResultsSubscription = FlutterBluePlus.scanResults.listen((results) {
-      _scanResults.addAll(results);
-      results.forEach((element) {
-        print("${element.device.remoteId}; ${element.rssi}");
+    _magnetometerSubscription = magnetometerEvents.listen((event) {
+      setState(() {
+        _magnetometerValues = [event];
+        _magnetometerValues.add(event);
       });
-/*       if (mounted) {
-        setState(() {});
-      } */
-    }, onError: (e) {});
-
-    _isScanningSubscription = FlutterBluePlus.isScanning.listen((state) {
-      _isScanning = state;
-/*       if (mounted) {
-        setState(() {});
-      } */
     });
+
+    super.initState();
   }
 
   @override
   void dispose() {
-    _scanResultsSubscription.cancel();
-    _adapterStateStateSubscription.cancel();
+    _magnetometerSubscription.cancel();
     super.dispose();
   }
 
   Future<void> startScan() async {
-    try {
-      await FlutterBluePlus.startScan(timeout: timeToScan);
-      duration = timeToScan.inSeconds.toDouble();
-    } catch (e) {
-      print("Erro to start scand");
-    }
+    print('Listening to bluetooth state');
+    await flutterBeacon.initializeAndCheckScanning;
+    _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
+      print('Bluetooth State: $state');
+      if (state == BluetoothState.stateOn) {
+        Timer(Duration(seconds: time_seconds), () {
+          _streamRanging?.cancel();
+          _streamBluetooth?.cancel();
+          _timer.cancel();
+          setState(() {
+            _isScanning = false;
+          });
+        });
+        startRead();
+      } else {
+        _streamRanging?.pause();
+      }
+    });
+
     if (mounted) {
       _timer = Timer.periodic(const Duration(seconds: 1), (_) {
         setState(() {
@@ -76,31 +89,119 @@ class _StartScandPageState extends State<StartScandPage> {
     }
   }
 
-  Future onStopPressed() async {
-    try {
-      await FlutterBluePlus.systemDevices;
-      await FlutterBluePlus.stopScan();
-    } catch (e) {
-      print("Stop Scan Error");
+  Future<void> postData(List<String> data) async {
+    final response = await http.post(
+        Uri.parse('https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'data': data}),
+      );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final int itemsInserted = responseData['total'] ?? 0;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Dados Inseridos"),
+            content: Text("Foi inserido $itemsInserted itens"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      print("Erro ao enviar os dados: ${response.statusCode}");
     }
   }
 
-  void verifyBluetoothIsOn() {
-    FlutterBluePlus.adapterState.listen((state) {
-      if (state != BluetoothAdapterState.on) {
-        const SnackBar(content: Text("Por favor, ative o bluetooth"));
-      } else {
-        startScan();
-      }
-    });
+  startRead() async {
+    try {
+      _isScanning = true;
+      await platform.invokeMethod<String>('startListener');
+      Future.delayed(Duration(seconds: time_seconds), () async {
+        await stopRead();
+      });
+    } on PlatformException catch (e) {
+      print(e);
+    }
   }
 
-  void showModalTurnOnBluetooth() {}
+  stopRead() async {
+    try {
+      final result = await platform.invokeMethod<List>('stopListener');
+
+      if (result != null) {
+        for (var map in result) {
+          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+
+          while (valuesList.length < 3) {
+            valuesList.add(0);
+          }
+
+          List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
+          double magneticX = _magnetometerValues.last.x;
+          double magneticY = _magnetometerValues.last.y;
+          double magneticZ = _magnetometerValues.last.z;
+          double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+
+          List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+
+          List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+
+          _scanResults.add(bleWithMagnetic.join(';'));
+        }
+      }
+
+      _isScanning = false;
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> _saveCSV() async {
+    if (_beaconsData.isNotEmpty) {
+      try {
+        var status = await Permission.storage.status;
+        print("STATUS: $status");
+        if (!status.isGranted) {
+          await Permission.storage.request();
+        }
+
+        Directory _directory = Directory("/storage/emulated/0/Download");
+        final exPath = _directory.path;
+        String csvPath = "${exPath}/beacon_datav2.csv";
+        File csvFile = File(csvPath);
+
+        List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();
+        String csvContent = const ListToCsvConverter().convert(csvData);
+        
+        await csvFile.writeAsString(csvContent);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Arquivo CSV salvo em ${csvFile.path}")),
+        );
+      } catch (e) {
+        print("Erro ao salvar o arquivo CSV: $e");
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Nenhum dado disponível para exportar")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final arguments = (ModalRoute.of(context)?.settings.arguments ??
-        <String, dynamic>{}) as Map;
+    final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
 
     int minute = 0;
     int seconds = 0;
@@ -127,29 +228,50 @@ class _StartScandPageState extends State<StartScandPage> {
                           return CircularProgressIndicator(value: value);
                         }),
                     const SizedBox(height: 20),
-                    Text(
-                        "Estamos escaneando para (${arguments['x']}; ${arguments['y']})"),
+                    Text("Estamos escaneando para (${arguments['x']}; ${arguments['y']})"),
                   ],
                 )
               : Column(
-                children: [
-                  ElevatedButton(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Tempo de escaneamento (segundos)',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        setState(() {
+                          time_seconds = int.tryParse(value) ?? 60;
+                          timeToScan = Duration(seconds: time_seconds);
+                          duration = timeToScan.inSeconds.toDouble();
+                        });
+                      },
+                    ),
+                    ElevatedButton(
                       onPressed: () {
-                        verifyBluetoothIsOn();
+                        //_saveCSV();
+                        postData(_beaconsData);
+                      },
+                      child: Text("Exportar CSV"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        startScan();
                       },
                       child: const Text("Scan"),
                     ),
-                  if(_scanResults.isNotEmpty)
                     ElevatedButton(
-                        onPressed: () {
-                          _scanResults.forEach((element) {                            
-                            print("(${arguments['x']}; ${arguments['y']}) - ${element.device.remoteId} - ${element.rssi}");
-                          });
-                        },
-                        child: const Text("Salvar dados"),
-                      ),
-                ],
-              ),
+                      onPressed: () {
+                        _scanResults.forEach((element) {
+                          String coordinates = "${arguments['x']}; ${arguments['y']}";
+                          _beaconsData.add("$coordinates;${element}");
+                        });
+
+                        _scanResults.clear();
+                      },
+                      child: const Text("Salvar dados"),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
