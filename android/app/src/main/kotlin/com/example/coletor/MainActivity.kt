@@ -72,7 +72,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun createIBeaconListener(): IBeaconListener {
-        val allowedAddresses = listOf("00:FA:B6:1D:DF:1F")
+        val allowedAddresses = listOf("00:FA:B6:1D:DF:1F", "00:FA:B6:1D:DF:AC", "00:FA:B6:1D:DF:A9")
         return object : IBeaconListener {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
