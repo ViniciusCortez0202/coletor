@@ -7,11 +7,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_beacon/flutter_beacon.dart';
 import 'package:simple_kalman/simple_kalman.dart';
 import 'package:http/http.dart' as http;
-
-// Pacotes para a obtenção dos dados magéticos e cálculo da RSSI magnética
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math';
 
+import 'dart:convert'; // Importação necessária para jsonEncode
+import 'package:http/http.dart' as http;
 
 class StartScandPage extends StatefulWidget {
   const StartScandPage({super.key});
@@ -29,14 +29,14 @@ class _StartScandPageState extends State<StartScandPage> {
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   bool _isScanning = false;
-  int time_seconds = 120;
-  Duration timeToScan = const Duration(seconds: 120);
+  int time_seconds = 60;
+  Duration timeToScan = const Duration(seconds: 60);
   late double duration;
   late Timer _timer;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.3);
   static const platform = MethodChannel('samples.flutter.dev/beacons');
 
-  //Lista de valores do sensor magnético
+  // Lista de valores do sensor magnético
   List<MagnetometerEvent> _magnetometerValues = [];
   late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
@@ -44,8 +44,8 @@ class _StartScandPageState extends State<StartScandPage> {
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
 
-    _magnetometerSubscription = magnetometerEvents.listen((event){
-      setState((){
+    _magnetometerSubscription = magnetometerEvents.listen((event) {
+      setState(() {
         _magnetometerValues = [event];
         _magnetometerValues.add(event);
       });
@@ -89,16 +89,38 @@ class _StartScandPageState extends State<StartScandPage> {
     }
   }
 
+  Future<void> postData(List<String> data) async {
+    final response = await http.post(
+        Uri.parse('https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({'data': data}),
+      );
 
-    Future<void> postData(List<int?> rssiValues) async {
-    final response = await http.get(
-      Uri.parse(
-          'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position?rssis=${rssiValues.join(",")}'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    );
-
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      final int itemsInserted = responseData['total'] ?? 0;
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Dados Inseridos"),
+            content: Text("Foi inserido $itemsInserted itens"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      print("Erro ao enviar os dados: ${response.statusCode}");
+    }
   }
 
   startRead() async {
@@ -108,7 +130,6 @@ class _StartScandPageState extends State<StartScandPage> {
       Future.delayed(Duration(seconds: time_seconds), () async {
         await stopRead();
       });
-
     } on PlatformException catch (e) {
       print(e);
     }
@@ -118,79 +139,69 @@ class _StartScandPageState extends State<StartScandPage> {
     try {
       final result = await platform.invokeMethod<List>('stopListener');
 
-      
-
       if (result != null) {
-      for (var map in result) {
-         List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+        for (var map in result) {
+          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
 
-        while (valuesList.length < 3) {
-          valuesList.add(0);
-        }
+          while (valuesList.length < 3) {
+            valuesList.add(0);
+          }
 
-        List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
-       
-        double magneticX    = _magnetometerValues.last.x;
-        double magneticY    = _magnetometerValues.last.y;
-        double magneticZ    = _magnetometerValues.last.z;
-        double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+          List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
+          double magneticX = _magnetometerValues.last.x;
+          double magneticY = _magnetometerValues.last.y;
+          double magneticZ = _magnetometerValues.last.z;
+          double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-        List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+          List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
 
-        List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+          List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
 
-        _scanResults.add(bleWithMagnetic.join(';'));
+          _scanResults.add(bleWithMagnetic.join(';'));
         }
       }
 
       _isScanning = false;
-
     } on PlatformException catch (e) {
       print(e);
     }
   }
 
- Future<void> _saveCSV() async {
-  if (_beaconsData.isNotEmpty) {
-    try {
+  Future<void> _saveCSV() async {
+    if (_beaconsData.isNotEmpty) {
+      try {
+        var status = await Permission.storage.status;
+        print("STATUS: $status");
+        if (!status.isGranted) {
+          await Permission.storage.request();
+        }
 
-      var status = await Permission.storage.status; 
-      print("STATUS: $status");
-      if (!status.isGranted) { 
-        await Permission.storage.request(); 
-      } 
+        Directory _directory = Directory("/storage/emulated/0/Download");
+        final exPath = _directory.path;
+        String csvPath = "${exPath}/beacon_datav2.csv";
+        File csvFile = File(csvPath);
 
-      Directory _directory = Directory("/storage/emulated/0/Download"); 
+        List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();
+        String csvContent = const ListToCsvConverter().convert(csvData);
+        
+        await csvFile.writeAsString(csvContent);
 
-      final exPath = _directory.path; 
-
-      String csvPath = "${exPath}/beacon_datav2.csv";    
-      File csvFile = File(csvPath);
-
-      List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();
-      
-      String csvContent = const ListToCsvConverter().convert(csvData);
-      
-      await csvFile.writeAsString(csvContent);
-
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Arquivo CSV salvo em ${csvFile.path}")),
+        );
+      } catch (e) {
+        print("Erro ao salvar o arquivo CSV: $e");
+      }
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Arquivo CSV salvo em ${csvFile.path}")),
+        SnackBar(content: Text("Nenhum dado disponível para exportar")),
       );
-    } catch (e) {
-      print("Erro ao salvar o arquivo CSV: $e");
     }
-  } else {
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Nenhum dado disponível para exportar")),
-    );
   }
-}
 
   @override
   Widget build(BuildContext context) {
-    final arguments = (ModalRoute.of(context)?.settings.arguments ??
-        <String, dynamic>{}) as Map;
+    final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
 
     int minute = 0;
     int seconds = 0;
@@ -217,19 +228,32 @@ class _StartScandPageState extends State<StartScandPage> {
                           return CircularProgressIndicator(value: value);
                         }),
                     const SizedBox(height: 20),
-                    Text(
-                        "Estamos escaneando para (${arguments['x']}; ${arguments['y']})"),
+                    Text("Estamos escaneando para (${arguments['x']}; ${arguments['y']})"),
                   ],
                 )
               : Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      _saveCSV();
-                    },
-                    child: Text("Exportar CSV"),
-                  ),
-                  ElevatedButton(
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Tempo de escaneamento (segundos)',
+                      ),
+                      keyboardType: TextInputType.number,
+                      onChanged: (value) {
+                        setState(() {
+                          time_seconds = int.tryParse(value) ?? 60;
+                          timeToScan = Duration(seconds: time_seconds);
+                          duration = timeToScan.inSeconds.toDouble();
+                        });
+                      },
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        //_saveCSV();
+                        postData(_beaconsData);
+                      },
+                      child: Text("Exportar CSV"),
+                    ),
+                    ElevatedButton(
                       onPressed: () {
                         startScan();
                       },
@@ -237,19 +261,17 @@ class _StartScandPageState extends State<StartScandPage> {
                     ),
                     ElevatedButton(
                       onPressed: () {
-
                         _scanResults.forEach((element) {
                           String coordinates = "${arguments['x']}; ${arguments['y']}";
-                            _beaconsData.add("$coordinates;${element}");
-                          });
+                          _beaconsData.add("$coordinates;${element}");
+                        });
 
-                          _scanResults.clear();
-                          print("Quantidade de dados salvos: ${_beaconsData.length}");
+                        _scanResults.clear();
                       },
-                        child: const Text("Salvar dados"),
-                      ),
-                ],
-              ),
+                      child: const Text("Salvar dados"),
+                    ),
+                  ],
+                ),
         ),
       ),
     );

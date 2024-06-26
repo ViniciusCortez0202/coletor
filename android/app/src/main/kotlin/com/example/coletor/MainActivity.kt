@@ -72,20 +72,20 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun createIBeaconListener(): IBeaconListener {
-        var updateCount = 0 // Variável para contar o número de atualizações
+        val allowedAddresses = listOf("00:FA:B6:1D:DF:1F")
         return object : IBeaconListener {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
-                //Log.i("Sample", "IBeacon discovered: " + iBeacons.toString());
-                //updateCount++
-                //Log.i("Sample", "Update count: $updateCount")
                 val map: HashMap<String?, Int?> = HashMap<String?, Int?>()
                 for (device in iBeacons) {
-                    map[device.address] = device.rssi
-
+                    if (device.address in allowedAddresses) {
+                        map[device.address] = device.rssi
+                        // Logando os detalhes dos dispositivos permitidos
+                        Log.i("Sample", "Dispositivo iBeacon permitido: Address = ${device.address}, RSSI = ${device.rssi}")
+                   }
                 }
                 values.add(map)
             }
