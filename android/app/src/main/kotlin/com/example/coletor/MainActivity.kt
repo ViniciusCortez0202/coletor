@@ -36,6 +36,7 @@ class MainActivity : FlutterActivity() {
         proximityManager?.configuration()
             ?.deviceUpdateCallbackInterval(10)
             ?.scanMode(ScanMode.LOW_LATENCY)
+            ?.scanPeriod(ScanPeriod.RANGING)
         proximityManager?.setIBeaconListener(createIBeaconListener())
     }
 
@@ -72,7 +73,6 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun createIBeaconListener(): IBeaconListener {
-        val allowedAddresses = listOf("00:FA:B6:1D:DF:1F", "00:FA:B6:1D:DF:AC", "00:FA:B6:1D:DF:A9")
         return object : IBeaconListener {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
@@ -81,11 +81,9 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 val map: HashMap<String?, Int?> = HashMap<String?, Int?>()
                 for (device in iBeacons) {
-                    if (device.address in allowedAddresses) {
-                        map[device.address] = device.rssi
-                        // Logando os detalhes dos dispositivos permitidos
-                        Log.i("Sample", "Dispositivo iBeacon permitido: Address = ${device.address}, RSSI = ${device.rssi}")
-                   }
+                    map[device.address] = device.rssi
+                    // Logando os detalhes dos dispositivos permitidos
+                    Log.i("Sample", "Dispositivo iBeacon permitido: Address = ${device.address}, RSSI = ${device.rssi}")
                 }
                 values.add(map)
             }
