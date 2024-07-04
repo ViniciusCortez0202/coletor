@@ -1,5 +1,6 @@
 package com.example.coletor
 
+
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -7,8 +8,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.kontakt.sdk.android.ble.configuration.ScanPeriod
 import com.kontakt.sdk.android.ble.configuration.ScanMode
+import com.kontakt.sdk.android.ble.device.BeaconRegion
 import com.kontakt.sdk.android.ble.manager.ProximityManager
 import com.kontakt.sdk.android.ble.manager.ProximityManagerFactory
 import com.kontakt.sdk.android.ble.manager.listeners.IBeaconListener
@@ -19,24 +20,51 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-
-import java.util.concurrent.TimeUnit
-import com.kontakt.sdk.android.common.util.SDKPreconditions.checkArgument
+import java.util.UUID
 
 
 class MainActivity : FlutterActivity() {
     private var proximityManager: ProximityManager? = null
     private val CHANNEL = "samples.flutter.dev/beacons"
-    private val values: MutableList<HashMap<String?, Int?>> = ArrayList()
+    private val values: MutableMap<String, MutableList<Int>> = HashMap()
     override fun onStart() {
         super.onStart()
         checkPermissions()
         KontaktSDK.initialize("OJWPPKwLEuahTooyXDKxRkuiYMwQTbVZ")
         proximityManager = ProximityManagerFactory.create(this)
+
         proximityManager?.configuration()
             ?.deviceUpdateCallbackInterval(10)
             ?.scanMode(ScanMode.LOW_LATENCY)
-            ?.scanPeriod(ScanPeriod.RANGING)
+
+        val beaconRegions: MutableCollection<IBeaconRegion> = ArrayList()
+
+        val region1: IBeaconRegion = BeaconRegion.Builder()
+            .identifier("Kontakt")
+            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+            .major(5873)
+            .minor(43386)
+            .build()
+
+        val region2: IBeaconRegion = BeaconRegion.Builder()
+            .identifier("Kontakt")
+            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+            .major(25900)
+            .minor(46849)
+            .build()
+
+        val region3: IBeaconRegion = BeaconRegion.Builder()
+            .identifier("Kontakt")
+            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+            .major(17934)
+            .minor(54799)
+            .build()
+
+        beaconRegions.add(region1)
+        beaconRegions.add(region2)
+        beaconRegions.add(region3)
+
+        proximityManager?.spaces()?.iBeaconRegions(beaconRegions)
         proximityManager?.setIBeaconListener(createIBeaconListener())
     }
 
@@ -79,13 +107,15 @@ class MainActivity : FlutterActivity() {
             }
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
-                val map: HashMap<String?, Int?> = HashMap<String?, Int?>()
-                for (device in iBeacons) {
-                    map[device.address] = device.rssi
-                    // Logando os detalhes dos dispositivos permitidos
-                    Log.i("Sample", "Dispositivo iBeacon permitido: Address = ${device.address}, RSSI = ${device.rssi}")
+                val address = iBeacons.last().address
+                val rssi = iBeacons.last().rssi
+
+                if (values.containsKey(address)) {
+                    values[address]?.add(rssi)
+                } else {
+                    val rssiList = mutableListOf(rssi)
+                    values[address] = rssiList
                 }
-                values.add(map)
             }
 
             override fun onIBeaconLost(iBeacon: IBeaconDevice, region: IBeaconRegion) {

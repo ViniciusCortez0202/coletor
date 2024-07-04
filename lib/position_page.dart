@@ -123,19 +123,17 @@ class _PositionPageState extends State<PositionPage> {
 
   Future<void> stopRead() async {
     try {
-      final result = await platform.invokeMethod<List>('stopListener');
-      if (result != null) {
-      for (var map in result) {
-         List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+      final result = await platform.invokeMethod<Map<dynamic, dynamic>>('stopListener');
 
-          while (valuesList.length < 3) {
-            valuesList.add(0);
-          }
-          rss1List.add(valuesList[0]);
-          rss2List.add(valuesList[1]);
-          rss3List.add(valuesList[2]);
-          }
-      }
+      result?.forEach((key, value) {
+        if (key == "00:FA:B6:1D:DF:2E") {
+          rss1List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+        } else if (key == "00:FA:B6:1D:DD:CF") {
+          rss2List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+        } else if (key == "00:FA:B6:1D:DF:8E") {
+          rss3List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+        }
+      });
     } on PlatformException catch (e) {
       print(e);
     }
@@ -153,9 +151,9 @@ class _PositionPageState extends State<PositionPage> {
     print("Mediana RSS3: $rss3Median");
 
 
-    int rss1 = rss1List.isNotEmpty && rss1List.length > 0 ? rss1List.last.toInt() : 0;
-    int rss2 = rss2List.isNotEmpty && rss2List.length > 0 ? rss2List.last.toInt() : 0;
-    int rss3 = rss3List.isNotEmpty && rss3List.length > 0 ? rss3List.last.toInt() : 0;
+    int rss1 = rss1List.isNotEmpty && rss1List.length > 0 ? rss1Median.toInt() : 0;
+    int rss2 = rss2List.isNotEmpty && rss2List.length > 0 ? rss2Median.toInt() : 0;
+    int rss3 = rss3List.isNotEmpty && rss3List.length > 0 ? rss3Median.toInt() : 0;
 
     lastRssis = [rss1, rss2, rss3];
   
