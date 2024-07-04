@@ -137,28 +137,35 @@ class _StartScandPageState extends State<StartScandPage> {
 
   stopRead() async {
     try {
-      final result = await platform.invokeMethod<List>('stopListener');
+      final result = await platform.invokeMethod<Map<dynamic, dynamic>>('stopListener');
 
       if (result != null) {
-        for (var map in result) {
-          List<int> valuesList = map.values.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+          
+          print("----");
+          print(result.values);
+          
 
-          while (valuesList.length < 3) {
-            valuesList.add(0);
-          }
+          List<List<int>> intArrays = result.values.map((value) => List<int>.from(value)).toList();
+          print("LISTA 1");
+          print(intArrays[0]);
 
-          List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
-          double magneticX = _magnetometerValues.last.x;
-          double magneticY = _magnetometerValues.last.y;
-          double magneticZ = _magnetometerValues.last.z;
-          double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+             print("LISTA 2");
+          print(intArrays[1]);
 
-          List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+             print("LISTA 3");
+          print(intArrays[2]);
+          // List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
+          // double magneticX = _magnetometerValues.last.x;
+          // double magneticY = _magnetometerValues.last.y;
+          // double magneticZ = _magnetometerValues.last.z;
+          // double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-          List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+          // List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
 
-          _scanResults.add(bleWithMagnetic.join(';'));
-        }
+          // List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
+
+          // _scanResults.add(bleWithMagnetic.join(';'));
+        
       }
 
       _isScanning = false;

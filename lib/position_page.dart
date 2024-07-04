@@ -65,7 +65,7 @@ class _PositionPageState extends State<PositionPage> {
   }
 
   void initScanBeacon() async {
-    Timer.periodic(Duration(seconds: 5), (timer) async {
+    Timer.periodic(Duration(seconds: 2), (timer) async {
       await stopRead();
 
       double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0 ? lastRssis[0].toDouble() : 0.0;
@@ -93,8 +93,6 @@ class _PositionPageState extends State<PositionPage> {
       startRead();
     });
 
-    // Start the initial read
-    startRead();
   }
 
     startRead() async {
@@ -125,12 +123,15 @@ class _PositionPageState extends State<PositionPage> {
     try {
       final result = await platform.invokeMethod<Map<dynamic, dynamic>>('stopListener');
 
+      print("-----");
+      print(result);
+
       result?.forEach((key, value) {
-        if (key == "00:FA:B6:1D:DF:2E") {
+        if (key == "00:FA:B6:1D:DF:AC") {
           rss1List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
-        } else if (key == "00:FA:B6:1D:DD:CF") {
+        } else if (key == "00:FA:B6:1D:DF:1F") {
           rss2List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
-        } else if (key == "00:FA:B6:1D:DF:8E") {
+        } else if (key == "00:FA:B6:1D:E1:11") {
           rss3List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
         }
       });
@@ -236,8 +237,8 @@ class _PositionPageState extends State<PositionPage> {
 
   @override
   Widget build(BuildContext context) {
-    final int rows = 9;
-    final int cols = 4;
+    final int rows = 4;
+    final int cols = 3;
 
 return Scaffold(
   appBar: AppBar(
