@@ -23,8 +23,6 @@ class StartScandPage extends StatefulWidget {
 List<String> _beaconsData = [];
 
 class _StartScandPageState extends State<StartScandPage> {
-  final List<String> allowedUUIDs = ["00:FA:B6:1D:DE:07", "00:FA:B6:1D:DD:F8", "00:FA:B6:12:E8:86"];
-  
   List<String> _scanResults = [];
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
@@ -137,35 +135,30 @@ class _StartScandPageState extends State<StartScandPage> {
 
   stopRead() async {
     try {
-      final result = await platform.invokeMethod<Map<dynamic, dynamic>>('stopListener');
+      final result = await platform.invokeMethod<List<dynamic>>('stopListener');
 
       if (result != null) {
-          
-          print("----");
-          print(result.values);
-          
+        for (var i = 0; i < result.length; i++) {
+          List<dynamic> dynamicList = result[i];
+          List<int> valuesListAsInt = dynamicList.map((e) => e as int).toList();
 
-          List<List<int>> intArrays = result.values.map((value) => List<int>.from(value)).toList();
-          print("LISTA 1");
-          print(intArrays[0]);
+          while (valuesListAsInt.length < 3) {
+            valuesListAsInt.add(0);
+          }
 
-             print("LISTA 2");
-          print(intArrays[1]);
+          double magneticX = _magnetometerValues.last.x;
+          double magneticY = _magnetometerValues.last.y;
+          double magneticZ = _magnetometerValues.last.z;
+          double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-             print("LISTA 3");
-          print(intArrays[2]);
-          // List<double> valuesListAsDouble = valuesList.map((e) => e.toDouble()).toList();
-          // double magneticX = _magnetometerValues.last.x;
-          // double magneticY = _magnetometerValues.last.y;
-          // double magneticZ = _magnetometerValues.last.z;
-          // double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+          // Cria uma lista com os valores magnéticos convertidos para int
+          //List<int> magneticData = [magneticX.toInt(), magneticY.toInt(), magneticZ.toInt(), magneticRssi.toInt()];
 
-          // List<double> magneticData = [magneticX, magneticY, magneticZ, magneticRssi];
+          // Combina a lista de valores com os dados magnéticos
+          //List<int> bleWithMagnetic = valuesListAsInt + magneticData;
 
-          // List<double> bleWithMagnetic = valuesListAsDouble + magneticData;
-
-          // _scanResults.add(bleWithMagnetic.join(';'));
-        
+          _scanResults.add(valuesListAsInt.join(';'));
+        }
       }
 
       _isScanning = false;

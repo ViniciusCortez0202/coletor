@@ -76,17 +76,8 @@ class _PositionPageState extends State<PositionPage> {
       double magneticZ = _magnetometerValues.last.z;
       double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
-      var data = {
-        'rss1': rss1,
-        'rss2': rss2,
-        'rss3': rss3,
-        'magneticX': magneticX,
-        'magneticY': magneticY,
-        'magneticZ': magneticZ,
-        'magneticRssi': magneticRssi
-      };
 
-      print("ENVIANDO PARA API: $data");
+      print("ENVIANDO PARA API: $lastRssis");
       fetchDataV2(lastRssis);
 
       // Restart the read process for the next interval
@@ -121,20 +112,20 @@ class _PositionPageState extends State<PositionPage> {
 
   Future<void> stopRead() async {
     try {
-      final result = await platform.invokeMethod<Map<dynamic, dynamic>>('stopListener');
+      
+      final result = await platform.invokeMethod<List<dynamic>>('stopListener');
 
-      print("-----");
-      print(result);
 
-      result?.forEach((key, value) {
-        if (key == "00:FA:B6:1D:DF:AC") {
-          rss1List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
-        } else if (key == "00:FA:B6:1D:DF:1F") {
-          rss2List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
-        } else if (key == "00:FA:B6:1D:E1:11") {
-          rss3List = value.map<int>((value) => int.tryParse(value.toString()) ?? 0).toList();
+      if (result != null) {
+        for (var i = 0; i < result.length; i++) {
+          List<dynamic> dynamicList = result[i];
+          List<int> valuesListAsInt = dynamicList.map((e) => e as int).toList();
+
+          rss1List.add(valuesListAsInt[0]);
+          rss2List.add(valuesListAsInt[1]);
+          rss3List.add(valuesListAsInt[2]);
         }
-      });
+      }
     } on PlatformException catch (e) {
       print(e);
     }

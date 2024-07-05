@@ -26,7 +26,7 @@ import java.util.UUID
 class MainActivity : FlutterActivity() {
     private var proximityManager: ProximityManager? = null
     private val CHANNEL = "samples.flutter.dev/beacons"
-    private val values: MutableMap<String, MutableList<Int>> = HashMap()
+    val values = mutableListOf<MutableList<Int>>()
     override fun onStart() {
         super.onStart()
         checkPermissions()
@@ -39,32 +39,32 @@ class MainActivity : FlutterActivity() {
 
         val beaconRegions: MutableCollection<IBeaconRegion> = ArrayList()
 
-        val region1: IBeaconRegion = BeaconRegion.Builder()
-            .identifier("Kontakt")
-            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-            .major(53462)
-            .minor(52894)
-            .build()
+//        val region1: IBeaconRegion = BeaconRegion.Builder()
+//            .identifier("Kontakt")
+//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+//            .major(53462)
+//            .minor(52894)
+//            .build()
+//
+//        val region2: IBeaconRegion = BeaconRegion.Builder()
+//            .identifier("Kontakt")
+//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+//            .major(50411)
+//            .minor(53503)
+//            .build()
+//
+//        val region3: IBeaconRegion = BeaconRegion.Builder()
+//            .identifier("Kontakt")
+//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
+//            .major(1888)
+//            .minor(4774)
+//            .build()
+//
+//        beaconRegions.add(region1)
+//        beaconRegions.add(region2)
+//        beaconRegions.add(region3)
 
-        val region2: IBeaconRegion = BeaconRegion.Builder()
-            .identifier("Kontakt")
-            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-            .major(50411)
-            .minor(53503)
-            .build()
-
-        val region3: IBeaconRegion = BeaconRegion.Builder()
-            .identifier("Kontakt")
-            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-            .major(1888)
-            .minor(4774)
-            .build()
-
-        beaconRegions.add(region1)
-        beaconRegions.add(region2)
-        beaconRegions.add(region3)
-
-        proximityManager?.spaces()?.iBeaconRegions(beaconRegions)
+        //proximityManager?.spaces()?.iBeaconRegions(beaconRegions)
         proximityManager?.setIBeaconListener(createIBeaconListener())
     }
 
@@ -105,17 +105,14 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
+            val beaconAddresses = listOf("00:FA:B6:1D:DF:2E", "00:FA:B6:1D:DF:8E", "00:FA:B6:1D:DD:CF")
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
-                val address = iBeacons.last().address
-                val rssi = iBeacons.last().rssi
+                val rssiMap = iBeacons.associateBy({ it.address }, { it.rssi.toInt() })
 
-                if (values.containsKey(address)) {
-                    values[address]?.add(rssi)
-                } else {
-                    val rssiList = mutableListOf(rssi)
-                    values[address] = rssiList
-                }
+                val rssis = beaconAddresses.map { address -> rssiMap[address] ?: 0 }.toMutableList()
+
+                values.add(rssis)
             }
 
             override fun onIBeaconLost(iBeacon: IBeaconDevice, region: IBeaconRegion) {
