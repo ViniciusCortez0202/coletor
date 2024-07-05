@@ -142,10 +142,6 @@ class _StartScandPageState extends State<StartScandPage> {
           List<dynamic> dynamicList = result[i];
           List<int> valuesListAsInt = dynamicList.map((e) => e as int).toList();
 
-          while (valuesListAsInt.length < 3) {
-            valuesListAsInt.add(0);
-          }
-
           double magneticX = _magnetometerValues.last.x;
           double magneticY = _magnetometerValues.last.y;
           double magneticZ = _magnetometerValues.last.z;
