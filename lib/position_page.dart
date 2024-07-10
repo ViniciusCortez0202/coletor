@@ -65,7 +65,7 @@ class _PositionPageState extends State<PositionPage> {
   }
 
   void initScanBeacon() async {
-    Timer.periodic(Duration(seconds: 2), (timer) async {
+    Timer.periodic(Duration(seconds: 5), (timer) async {
       await stopRead();
 
       double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0 ? lastRssis[0].toDouble() : 0.0;
@@ -95,15 +95,23 @@ class _PositionPageState extends State<PositionPage> {
   }
 
   double median(List<int> values) {
-  if (values.isEmpty) return 0;
-  values.sort();
-  int middle = values.length ~/ 2;
-  if (values.length % 2 == 1) {
-    return values[middle].toDouble();
-  } else {
-    return ((values[middle - 1] + values[middle]) / 2).toDouble();
+    if (values.isEmpty) return 0;
+      values.sort();
+
+    int middle = values.length ~/ 2;
+
+    if (values.length % 2 == 1) {
+      return values[middle].toDouble();
+    } else {
+      return ((values[middle - 1] + values[middle]) / 2).toDouble();
+    }
   }
-}
+
+  double media(List<int> values) {
+    if (values.isEmpty) return 0;
+    int soma = values.reduce((a, b) => a + b);
+    return soma / values.length;
+  }
 
   List<int> rss1List = [];
   List<int> rss2List = [];

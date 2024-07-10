@@ -148,12 +148,12 @@ class _StartScandPageState extends State<StartScandPage> {
           double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
           // Cria uma lista com os valores magnéticos convertidos para int
-          //List<int> magneticData = [magneticX.toInt(), magneticY.toInt(), magneticZ.toInt(), magneticRssi.toInt()];
+          List<int> magneticData = [magneticX.toInt(), magneticY.toInt(), magneticZ.toInt(), magneticRssi.toInt()];
 
           // Combina a lista de valores com os dados magnéticos
-          //List<int> bleWithMagnetic = valuesListAsInt + magneticData;
+          List<int> bleWithMagnetic = valuesListAsInt + magneticData;
 
-          _scanResults.add(valuesListAsInt.join(';'));
+          _scanResults.add(bleWithMagnetic.join(';'));
         }
       }
 
