@@ -23,6 +23,7 @@ class _PositionPageState extends State<PositionPage> {
   int currentY = 0;
   bool _isMounted = false;
   int time_seconds = 6;
+  Map<String, dynamic> fetchedData = {};
 
   List<int> lastRssis = [];
 
@@ -76,9 +77,20 @@ class _PositionPageState extends State<PositionPage> {
       double magneticZ = _magnetometerValues.last.z;
       double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
+      var data = {
+        'rss1': rss1,
+        'rss2': rss2,
+        'rss3': rss3,
+        'magneticX': magneticX,
+        'magneticY': magneticY,
+        'magneticZ': magneticZ,
+        'magneticRssi': magneticRssi
+      };
 
-      print("ENVIANDO PARA API: $lastRssis");
-      fetchDataV2(lastRssis);
+      fetchData(data);
+
+      // print("ENVIANDO PARA API: $lastRssis");
+      //fetchDataV2(lastRssis);
 
       // Restart the read process for the next interval
       startRead();
@@ -116,6 +128,7 @@ class _PositionPageState extends State<PositionPage> {
   List<int> rss1List = [];
   List<int> rss2List = [];
   List<int> rss3List = [];
+  List<int> rss4List = [];
 
 
   Future<void> stopRead() async {
@@ -132,6 +145,7 @@ class _PositionPageState extends State<PositionPage> {
           rss1List.add(valuesListAsInt[0]);
           rss2List.add(valuesListAsInt[1]);
           rss3List.add(valuesListAsInt[2]);
+          //rss4List.add(valuesListAsInt[3]);
         }
       }
     } on PlatformException catch (e) {
@@ -141,6 +155,7 @@ class _PositionPageState extends State<PositionPage> {
     double rss1Median = median(rss1List);
     double rss2Median = median(rss2List);
     double rss3Median = median(rss3List);
+    double rss4Median = median(rss4List);
 
     print("RSS1: $rss1List");
     print("RSS2: $rss2List");
@@ -154,12 +169,14 @@ class _PositionPageState extends State<PositionPage> {
     int rss1 = rss1List.isNotEmpty && rss1List.length > 0 ? rss1Median.toInt() : 0;
     int rss2 = rss2List.isNotEmpty && rss2List.length > 0 ? rss2Median.toInt() : 0;
     int rss3 = rss3List.isNotEmpty && rss3List.length > 0 ? rss3Median.toInt() : 0;
+    int rss4 = rss4List.isNotEmpty && rss4List.length > 0 ? rss4Median.toInt() : 0;
 
     lastRssis = [rss1, rss2, rss3];
   
     rss1List.clear();
     rss2List.clear();
     rss3List.clear();
+    rss4List.clear();
   }
 
   Future<void> fetchData(Map<String, double> data) async {
@@ -179,23 +196,14 @@ class _PositionPageState extends State<PositionPage> {
         final ble = data['ble'] as Map<String, dynamic>;
         final bleCoords = ble['coords'] as String;
         final bleCoordsValues = bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
-        final bleX = int.parse(bleCoordsValues[0].trim());
-        final bleY = int.parse(bleCoordsValues[1].trim());
 
-        print("BLE Coords: x = $bleX, y = $bleY");
-
-        // Acessar os valores de coords para "ble_mag"
-        final bleMag = data['ble_mag'] as Map<String, dynamic>;
-        final bleMagCoords = bleMag['coords'] as String;
-        final bleMagCoordsValues = bleMagCoords.replaceAll('(', '').replaceAll(')', '').split(',');
-        final bleMagX = int.parse(bleMagCoordsValues[0].trim());
-        final bleMagY = int.parse(bleMagCoordsValues[1].trim());
-
-        print("BLE Mag Coords: x = $bleMagX, y = $bleMagY");
+        final bleX = int.parse(bleCoordsValues[0][0].trim());
+        final bleY = int.parse(bleCoordsValues[0][2].trim());
 
       setState(() {
         currentX = bleX;
         currentY = bleY;
+        fetchedData = data;;
       });
     } else {
       throw Exception('Falha ao carregar os dados');
@@ -240,65 +248,104 @@ class _PositionPageState extends State<PositionPage> {
     final int cols = 3;
 
 return Scaffold(
-  appBar: AppBar(
-    title: Text('Position Page'),
-  ),
-  body: Stack(
-    children: [
-      Center(
-        child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: cols,
-          ),
-          itemCount: rows * cols,
-          itemBuilder: (BuildContext context, int index) {
-            final int row = index ~/ cols;
-            final int col = index % cols;
+      appBar: AppBar(
+        title: Text('Position Page'),
+      ),
+      body: Stack(
+        children: [
+          // Center(
+          //   child: GridView.builder(
+          //     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          //       crossAxisCount: cols,
+          //     ),
+          //     itemCount: rows * cols,
+          //     itemBuilder: (BuildContext context, int index) {
+          //       final int row = index ~/ cols;
+          //       final int col = index % cols;
 
-            final bool isCurrentPosition = row == currentX && col == currentY;
+          //       final bool isCurrentPosition = row == currentX && col == currentY;
 
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  currentX = row;
-                  currentY = col;
-                });
-              },
-              child: Container(
-                margin: EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isCurrentPosition ? Colors.red : Colors.blue,
-                  shape: BoxShape.rectangle,
-                ),
-                height: 50,  // Tamanho da bola (diâmetro)
-                width: 50,  
-                child: Center(
+          //       return GestureDetector(
+          //         onTap: () {
+          //           setState(() {
+          //             currentX = row;
+          //             currentY = col;
+          //           });
+          //         },
+          //         child: Container(
+          //           margin: EdgeInsets.all(4),
+          //           decoration: BoxDecoration(
+          //             color: isCurrentPosition ? Colors.red : Colors.blue,
+          //             shape: BoxShape.rectangle,
+          //           ),
+          //           height: 50,  // Tamanho da bola (diâmetro)
+          //           width: 50,
+          //           child: Center(
+          //             child: Text(
+          //               '($row, $col)',
+          //               style: TextStyle(
+          //                 color: Colors.white,  // Cor do texto
+          //                 fontSize: 7,        // Tamanho do texto
+          //               ),
+          //             ),
+          //           ),
+          //         ),
+          //       );
+          //     },
+          //   ),
+          // ),
+          // Opacity(
+          //   opacity: 0.8,  // Ajuste a opacidade conforme necessário para tornar a imagem mais transparente
+          //   child: Center(
+          //     child: Image.asset(
+          //       'assets/images/teste.png',  // Certifique-se de que o caminho esteja correto
+          //       fit: BoxFit.cover,
+          //       height: double.infinity,
+          //       width: double.infinity,
+          //     ),
+          //   ),
+          // ),
+          Positioned(
+            bottom: 20,
+            left: 20,
+            right: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  color: Colors.white.withOpacity(0.8),
                   child: Text(
-                    '($row, $col)',
-                    style: TextStyle(
-                      color: Colors.white,  // Cor do texto
-                      fontSize: 7,        // Tamanho do texto
-                    ),
+                    'RSSIs: $lastRssis',
+                    style: TextStyle(fontSize: 16, color: Colors.black),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+                SizedBox(height: 10),
+                Container(
+                    padding: EdgeInsets.all(10),
+                    color: Colors.white.withOpacity(0.8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: fetchedData.entries.map<Widget>((entry) {
+                        final coords = entry.value['coords'];
+                        final probability = entry.value['probability'];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Text(
+                            '${entry.key} - Coords: $coords, Probability: $probability',
+                            style: TextStyle(fontSize: 16, color: Colors.black),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
-      // Opacity(
-      //   opacity: 0.8,  // Ajuste a opacidade conforme necessário para tornar a imagem mais transparente
-      //   child: Center(
-      //     child: Image.asset(
-      //       'assets/images/teste.png',  // Certifique-se de que o caminho esteja correto
-      //       fit: BoxFit.cover,
-      //       height: double.infinity,
-      //       width: double.infinity,
-      //     ),
-      //   ),
-      // ),
-    ],
-  ),
-);
+    );
+
+
   }
 }
