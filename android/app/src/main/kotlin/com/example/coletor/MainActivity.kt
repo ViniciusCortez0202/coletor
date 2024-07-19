@@ -105,7 +105,7 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
-            val beaconAddresses = listOf("00:FA:B6:1D:DF:2E", "00:FA:B6:1D:DD:CF", "00:FA:B6:1D:DF:8E")
+            val beaconAddresses = listOf("00:FA:B6:1D:DF:1F", "00:FA:B6:1D:DF:AC", "00:FA:B6:1D:E1:11")
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 val rssiMap = iBeacons.associateBy({ it.address }, { it.rssi.toInt() })
