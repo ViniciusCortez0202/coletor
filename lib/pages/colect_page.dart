@@ -56,9 +56,10 @@ class _ColectPageState extends State<ColectPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   OutlinedButton(
-                      onPressed: () {
-
+                      onPressed: () { 
                         Navigator.of(context).pushNamed('/position', arguments: {
+                          'x': controllerX.text,
+                          'y': controllerY.text
                         });
                       }, child: const Text("Estimar posição")),
                   const SizedBox(width: 20),

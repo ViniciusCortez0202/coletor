@@ -20,6 +20,10 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
+
+  int realX = 0;
+  int realY = 0;
+
   bool _isMounted = false;
   int time_seconds = 6;
   Map<String, dynamic> fetchedData = {};
@@ -208,12 +212,40 @@ class _PositionPageState extends State<PositionPage> {
       final bleX = int.parse(bleCoordsValues[0][0].trim());
       final bleY = int.parse(bleCoordsValues[0][2].trim());
 
+      
+
+      var new_data = {
+        'rssis': lastRssis,
+        'coord_real': '$realX, $realY',
+        'coord_estimated': '$bleX, $bleY',
+      };
+
+      postKnnMetrics(new_data);
+
+
       setState(() {
         currentX = bleX;
         currentY = bleY;
         fetchedData = data;
         ;
       });
+    } else {
+      throw Exception('Falha ao carregar os dados');
+    }
+  }
+
+  Future<void> postKnnMetrics(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse(
+          'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_metric'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(data),
+    );
+
+    if (response.statusCode == 200) {
+      print('KNN Metrics posted');
     } else {
       throw Exception('Falha ao carregar os dados');
     }
@@ -255,6 +287,12 @@ class _PositionPageState extends State<PositionPage> {
   Widget build(BuildContext context) {
     final int rows = 4;
     final int cols = 3;
+    final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
+
+    setState(() {
+      realX = int.parse(arguments['x']);
+      realY = int.parse(arguments['y']);
+    });
 
     return Scaffold(
       appBar: AppBar(
