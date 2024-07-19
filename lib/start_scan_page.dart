@@ -35,26 +35,26 @@ class _StartScandPageState extends State<StartScandPage> {
   static const platform = MethodChannel('samples.flutter.dev/beacons');
 
   // Lista de valores do sensor magnético
-  List<MagnetometerEvent> _magnetometerValues = [];
-  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  // List<MagnetometerEvent> _magnetometerValues = [];
+  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
     duration = timeToScan.inSeconds.toDouble();
 
-    _magnetometerSubscription = magnetometerEvents.listen((event) {
+/*  _magnetometerSubscription = magnetometerEvents.listen((event) {
       setState(() {
         _magnetometerValues = [event];
         _magnetometerValues.add(event);
       });
-    });
+    }); */
 
     super.initState();
   }
 
   @override
   void dispose() {
-    _magnetometerSubscription.cancel();
+    //_magnetometerSubscription.cancel();
     super.dispose();
   }
 
@@ -142,9 +142,9 @@ class _StartScandPageState extends State<StartScandPage> {
           List<dynamic> dynamicList = result[i];
           List<int> valuesListAsInt = dynamicList.map((e) => e as int).toList();
 
-          double magneticX = _magnetometerValues.last.x;
-          double magneticY = _magnetometerValues.last.y;
-          double magneticZ = _magnetometerValues.last.z;
+          double magneticX = 0;//_magnetometerValues.last.x;
+          double magneticY = 0;//_magnetometerValues.last.y;
+          double magneticZ = 0;//_magnetometerValues.last.z;
           double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
           // Cria uma lista com os valores magnéticos convertidos para int

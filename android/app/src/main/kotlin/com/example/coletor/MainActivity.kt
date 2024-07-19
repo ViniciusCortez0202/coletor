@@ -18,6 +18,7 @@ import com.kontakt.sdk.android.common.profile.IBeaconDevice
 import com.kontakt.sdk.android.common.profile.IBeaconRegion
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.UUID
@@ -27,12 +28,13 @@ class MainActivity : FlutterActivity() {
     private var proximityManager: ProximityManager? = null
     private val CHANNEL = "samples.flutter.dev/beacons"
     val values = mutableListOf<MutableList<Int>>()
+    var eventsSink: EventChannel.EventSink? = null
+
     override fun onStart() {
         super.onStart()
         checkPermissions()
         KontaktSDK.initialize("OJWPPKwLEuahTooyXDKxRkuiYMwQTbVZ")
         proximityManager = ProximityManagerFactory.create(this)
-
         proximityManager?.configuration()
             ?.deviceUpdateCallbackInterval(10)
             ?.scanMode(ScanMode.LOW_LATENCY)
@@ -85,19 +87,20 @@ class MainActivity : FlutterActivity() {
                 result.notImplemented()
             }
         }
+        //val eventChannel = EventChannel(flutterEngine.dartExecutor.binaryMessenger, "timeHandlerEvent"); // timeHandlerEvent event name
 
-//        new EventChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL)
-//                .setStreamHandler(new EventChannel.StreamHandler() {
-//            @Override
-//            public void onListen(Object arguments, EventChannel.EventSink events) {
-//                events.success(null);
-//            }
-//
-//            @Override
-//            public void onCancel(Object arguments) {
-//
-//            }
-//        });
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "bluetoothBleEvent")
+                .setStreamHandler(
+                    object : EventChannel.StreamHandler {
+                        override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                            eventsSink = events
+                        }
+
+                        override fun onCancel(arguments: Any?) {
+                        }
+
+                    }
+                )
     }
 
     private fun createIBeaconListener(): IBeaconListener {
@@ -109,13 +112,17 @@ class MainActivity : FlutterActivity() {
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 val rssiMap = iBeacons.associateBy({ it.address }, { it.rssi.toInt() })
-                println(rssiMap)
+                //println(rssiMap)
 
                 val rssis = beaconAddresses.map { address -> rssiMap[address] ?: 0 }.toMutableList()
 
+                if(eventsSink != null) {
+                    
+                    eventsSink!!.success(rssis)
+                }
                 values.add(rssis)
 
-                println("RSSI values: $rssis")
+                //println("RSSI values: $rssis")
             }
 
             override fun onIBeaconLost(iBeacon: IBeaconDevice, region: IBeaconRegion) {

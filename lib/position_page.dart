@@ -10,7 +10,6 @@ import 'package:simple_kalman/simple_kalman.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math';
 
-
 class PositionPage extends StatefulWidget {
   const PositionPage({Key? key}) : super(key: key);
 
@@ -28,24 +27,24 @@ class _PositionPageState extends State<PositionPage> {
   List<int> lastRssis = [];
 
   static const platform = MethodChannel('samples.flutter.dev/beacons');
+  static const eventChannel = EventChannel('bluetoothBleEvent');
 
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   //Lista de valores do sensor magnético
-  List<MagnetometerEvent> _magnetometerValues = [];
-  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
-
+  //List<MagnetometerEvent> _magnetometerValues = [];
+  //late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    _magnetometerSubscription = magnetometerEvents.listen((event){
+    /*  _magnetometerSubscription = magnetometerEvents.listen((event){
       setState((){
         _magnetometerValues = [event];
         _magnetometerValues.add(event);
       });
-    });
+    }); */
 
     super.initState();
     _isMounted = true;
@@ -55,7 +54,9 @@ class _PositionPageState extends State<PositionPage> {
   void listeningState() async {
     print('Listening to bluetooth state');
     await flutterBeacon.initializeAndCheckScanning;
-    _streamBluetooth = flutterBeacon.bluetoothStateChanged().listen((BluetoothState state) async {
+    _streamBluetooth = flutterBeacon
+        .bluetoothStateChanged()
+        .listen((BluetoothState state) async {
       print('Bluetooth State: $state');
       if (state == BluetoothState.stateOn) {
         initScanBeacon();
@@ -69,22 +70,24 @@ class _PositionPageState extends State<PositionPage> {
     Timer.periodic(Duration(seconds: 5), (timer) async {
       await stopRead();
 
-      double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0 ? lastRssis[0].toDouble() : 0.0;
+      double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0
+          ? lastRssis[0].toDouble()
+          : 0.0;
       double rss2 = lastRssis.length > 1 ? lastRssis[1].toDouble() : 0.0;
       double rss3 = lastRssis.length > 2 ? lastRssis[2].toDouble() : 0.0;
-      double magneticX = _magnetometerValues.last.x;
+      /*  double magneticX = _magnetometerValues.last.x;
       double magneticY = _magnetometerValues.last.y;
       double magneticZ = _magnetometerValues.last.z;
-      double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+      double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2)); */
 
       var data = {
         'rss1': rss1,
         'rss2': rss2,
         'rss3': rss3,
-        'magneticX': magneticX,
-        'magneticY': magneticY,
-        'magneticZ': magneticZ,
-        'magneticRssi': magneticRssi
+        'magneticX': 0.0,
+        'magneticY': 0.0,
+        'magneticZ': 0.0,
+        'magneticRssi': 0.0
       };
 
       fetchData(data);
@@ -93,14 +96,14 @@ class _PositionPageState extends State<PositionPage> {
       //fetchDataV2(lastRssis);
 
       // Restart the read process for the next interval
-      startRead();
     });
-
+    startRead();
   }
 
-    startRead() async {
+  startRead() async {
     try {
       await platform.invokeMethod<String>('startListener');
+      loadEvent();
     } on PlatformException catch (e) {
       print(e);
     }
@@ -108,7 +111,7 @@ class _PositionPageState extends State<PositionPage> {
 
   double median(List<int> values) {
     if (values.isEmpty) return 0;
-      values.sort();
+    values.sort();
 
     int middle = values.length ~/ 2;
 
@@ -130,12 +133,9 @@ class _PositionPageState extends State<PositionPage> {
   List<int> rss3List = [];
   List<int> rss4List = [];
 
-
   Future<void> stopRead() async {
-    try {
-      
+    /* try {
       final result = await platform.invokeMethod<List<dynamic>>('stopListener');
-
 
       if (result != null) {
         for (var i = 0; i < result.length; i++) {
@@ -150,7 +150,7 @@ class _PositionPageState extends State<PositionPage> {
       }
     } on PlatformException catch (e) {
       print(e);
-    }
+    } */
 
     double rss1Median = median(rss1List);
     double rss2Median = median(rss2List);
@@ -165,52 +165,73 @@ class _PositionPageState extends State<PositionPage> {
     print("Mediana RSS2: $rss2Median");
     print("Mediana RSS3: $rss3Median");
 
-
-    int rss1 = rss1List.isNotEmpty && rss1List.length > 0 ? rss1Median.toInt() : 0;
-    int rss2 = rss2List.isNotEmpty && rss2List.length > 0 ? rss2Median.toInt() : 0;
-    int rss3 = rss3List.isNotEmpty && rss3List.length > 0 ? rss3Median.toInt() : 0;
-    int rss4 = rss4List.isNotEmpty && rss4List.length > 0 ? rss4Median.toInt() : 0;
+    int rss1 =
+        rss1List.isNotEmpty && rss1List.length > 0 ? rss1Median.toInt() : 0;
+    int rss2 =
+        rss2List.isNotEmpty && rss2List.length > 0 ? rss2Median.toInt() : 0;
+    int rss3 =
+        rss3List.isNotEmpty && rss3List.length > 0 ? rss3Median.toInt() : 0;
+    int rss4 =
+        rss4List.isNotEmpty && rss4List.length > 0 ? rss4Median.toInt() : 0;
 
     lastRssis = [rss1, rss2, rss3];
-  
+
     rss1List.clear();
     rss2List.clear();
     rss3List.clear();
     rss4List.clear();
   }
 
-  Future<void> fetchData(Map<String, double> data) async {
+  void loadEvent() {
+    try {
+      eventChannel.receiveBroadcastStream().forEach((event) {
+        if (event != null) {
+          List<dynamic> dynamicList = event;
+          rss1List.add(dynamicList[0]);
+          rss2List.add(dynamicList[1]);
+          rss3List.add(dynamicList[2]);
+        }
+      });
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
+
+  Future<void> fetchData(Map<String, double> data2) async {
     if (!_isMounted) return;
-    final response = await http.post(
-      Uri.parse('https://ble-fingerprinting-2369ef4e0fbf.herokuapp.com/predict'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://ble-fingerprinting-2369ef4e0fbf.herokuapp.com/predict'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(data2),
+      );
 
-    if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-        // Acessar os valores de coords para "ble"
-        final ble = data['ble'] as Map<String, dynamic>;
-        final bleCoords = ble['coords'] as String;
-        final bleCoordsValues = bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
+      // Acessar os valores de coords para "ble"
+      final ble = data['ble'] as Map<String, dynamic>;
+      final bleCoords = ble['coords'] as String;
+      final bleCoordsValues =
+          bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
 
-        final bleX = int.parse(bleCoordsValues[0][0].trim());
-        final bleY = int.parse(bleCoordsValues[0][2].trim());
+      final bleX = int.parse(bleCoordsValues[0][0].trim());
+      final bleY = int.parse(bleCoordsValues[0][2].trim());
 
       setState(() {
         currentX = bleX;
         currentY = bleY;
-        fetchedData = data;;
+        fetchedData = data;
+        ;
       });
-    } else {
+    } catch (e) {
       throw Exception('Falha ao carregar os dados');
     }
   }
 
-    Future<void> fetchDataV2(List<int?> rssiValues) async {
+  Future<void> fetchDataV2(List<int?> rssiValues) async {
     if (!_isMounted) return;
 
     final response = await http.get(
@@ -237,7 +258,8 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-    _magnetometerSubscription.cancel();
+/*     _magnetometerSubscription.cancel();
+ */
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
   }
@@ -247,7 +269,7 @@ class _PositionPageState extends State<PositionPage> {
     final int rows = 4;
     final int cols = 3;
 
-return Scaffold(
+    return Scaffold(
       appBar: AppBar(
         title: Text('Position Page'),
       ),
@@ -322,30 +344,28 @@ return Scaffold(
                 ),
                 SizedBox(height: 10),
                 Container(
-                    padding: EdgeInsets.all(10),
-                    color: Colors.white.withOpacity(0.8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: fetchedData.entries.map<Widget>((entry) {
-                        final coords = entry.value['coords'];
-                        final probability = entry.value['probability'];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4.0),
-                          child: Text(
-                            '${entry.key} - Coords: $coords, Probability: $probability',
-                            style: TextStyle(fontSize: 16, color: Colors.black),
-                          ),
-                        );
-                      }).toList(),
-                    ),
+                  padding: EdgeInsets.all(10),
+                  color: Colors.white.withOpacity(0.8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: fetchedData.entries.map<Widget>((entry) {
+                      final coords = entry.value['coords'];
+                      final probability = entry.value['probability'];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Text(
+                          '${entry.key} - Coords: $coords, Probability: $probability',
+                          style: TextStyle(fontSize: 16, color: Colors.black),
+                        ),
+                      );
+                    }).toList(),
                   ),
+                ),
               ],
             ),
           ),
         ],
       ),
     );
-
-
   }
 }
