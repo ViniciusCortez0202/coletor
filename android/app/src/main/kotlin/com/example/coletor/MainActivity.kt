@@ -105,11 +105,10 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
-            val beaconAddresses = listOf("00:FA:B6:1D:DF:1F", "00:FA:B6:1D:E1:11", "00:FA:B6:1D:DF:AC")
+            val beaconAddresses = listOf("00:FA:B6:1D:DF:2E", "00:FA:B6:1D:DD:CF", "00:FA:B6:1D:DF:8E")
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 val rssiMap = iBeacons.associateBy({ it.address }, { it.rssi.toInt() })
-                println(rssiMap)
 
                 val rssis = beaconAddresses.map { address -> rssiMap[address] ?: 0 }.toMutableList()
 
@@ -119,7 +118,6 @@ class MainActivity : FlutterActivity() {
             }
 
             override fun onIBeaconLost(iBeacon: IBeaconDevice, region: IBeaconRegion) {
-                //Beacon lost
             }
         }
     }
