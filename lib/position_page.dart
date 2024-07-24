@@ -31,23 +31,24 @@ class _PositionPageState extends State<PositionPage> {
   List<int> lastRssis = [];
 
   static const platform = MethodChannel('samples.flutter.dev/beacons');
+  static const eventChannel = EventChannel('bluetoothBleEvent');
 
   StreamSubscription<RangingResult>? _streamRanging;
   StreamSubscription<BluetoothState>? _streamBluetooth;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   //Lista de valores do sensor magnético
-  // List<MagnetometerEvent> _magnetometerValues = [];
-  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  //List<MagnetometerEvent> _magnetometerValues = [];
+  //late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    // _magnetometerSubscription = magnetometerEvents.listen((event) {
-    //   setState(() {
-    //     _magnetometerValues = [event];
-    //     _magnetometerValues.add(event);
-    //   });
-    // });
+    /*  _magnetometerSubscription = magnetometerEvents.listen((event){
+      setState((){
+        _magnetometerValues = [event];
+        _magnetometerValues.add(event);
+      });
+    }); */
 
     super.initState();
     _isMounted = true;
@@ -71,46 +72,42 @@ class _PositionPageState extends State<PositionPage> {
 
   void initScanBeacon() async {
     Timer.periodic(Duration(seconds: 5), (timer) async {
-      await performScan();
+      await stopRead();
+
+      double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0
+          ? lastRssis[0].toDouble()
+          : 0.0;
+      double rss2 = lastRssis.length > 1 ? lastRssis[1].toDouble() : 0.0;
+      double rss3 = lastRssis.length > 2 ? lastRssis[2].toDouble() : 0.0;
+      /*  double magneticX = _magnetometerValues.last.x;
+      double magneticY = _magnetometerValues.last.y;
+      double magneticZ = _magnetometerValues.last.z;
+      double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2)); */
+
+      var data = {
+        'rss1': rss1,
+        'rss2': rss2,
+        'rss3': rss3,
+        'magneticX': 0.0,
+        'magneticY': 0.0,
+        'magneticZ': 0.0,
+        'magneticRssi': 0.0
+      };
+
+      fetchData(data);
+
+      // print("ENVIANDO PARA API: $lastRssis");
+      //fetchDataV2(lastRssis);
+
+      // Restart the read process for the next interval
     });
-  }
-
-  Future<void> performScan() async {
-    await stopRead();
-
-    double rss1 = lastRssis.isNotEmpty && lastRssis.length > 0
-        ? lastRssis[0].toDouble()
-        : 0.0;
-    double rss2 = lastRssis.length > 1 ? lastRssis[1].toDouble() : 0.0;
-    double rss3 = lastRssis.length > 2 ? lastRssis[2].toDouble() : 0.0;
-    // double magneticX =
-    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.x : 0.0;
-    // double magneticY =
-    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.y : 0.0;
-    // double magneticZ =
-    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.z : 0.0;
-    // double magneticRssi =
-    //     sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
-
-    var data = {
-      'rss1': rss1,
-      'rss2': rss2,
-      'rss3': rss3,
-      'magneticX': 0.0,
-      'magneticY': 0.0,
-      'magneticZ':0.0,
-      'magneticRssi': 0.0
-    };
-
-    fetchData(data);
-
-    // Restart the read process for the next interval
-    await startRead();
+    startRead();
   }
 
   startRead() async {
     try {
       await platform.invokeMethod<String>('startListener');
+      loadEvent();
     } on PlatformException catch (e) {
       print(e);
     }
@@ -141,7 +138,7 @@ class _PositionPageState extends State<PositionPage> {
   List<int> rss4List = [];
 
   Future<void> stopRead() async {
-    try {
+    /* try {
       final result = await platform.invokeMethod<List<dynamic>>('stopListener');
 
       if (result != null) {
@@ -157,7 +154,7 @@ class _PositionPageState extends State<PositionPage> {
       }
     } on PlatformException catch (e) {
       print(e);
-    }
+    } */
 
     double rss1Median = median(rss1List);
     double rss2Median = median(rss2List);
@@ -189,18 +186,33 @@ class _PositionPageState extends State<PositionPage> {
     rss4List.clear();
   }
 
-  Future<void> fetchData(Map<String, double> data) async {
-    if (!_isMounted) return;
-    final response = await http.post(
-      Uri.parse(
-          'https://ble-fingerprinting-2369ef4e0fbf.herokuapp.com/predict'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(data),
-    );
+  void loadEvent() {
+    try {
+      eventChannel.receiveBroadcastStream().forEach((event) {
+        if (event != null) {
+          List<dynamic> dynamicList = event;
+          rss1List.add(dynamicList[0]);
+          rss2List.add(dynamicList[1]);
+          rss3List.add(dynamicList[2]);
+        }
+      });
+    } on PlatformException catch (e) {
+      print(e);
+    }
+  }
 
-    if (response.statusCode == 200) {
+  Future<void> fetchData(Map<String, double> data2) async {
+    if (!_isMounted) return;
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://ble-fingerprinting-2369ef4e0fbf.herokuapp.com/predict'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(data2),
+      );
+
       final data = jsonDecode(response.body) as Map<String, dynamic>;
 
       // Acessar os valores de coords para "ble"
@@ -212,8 +224,6 @@ class _PositionPageState extends State<PositionPage> {
       final bleX = int.parse(bleCoordsValues[0][0].trim());
       final bleY = int.parse(bleCoordsValues[0][2].trim());
 
-      
-
       var new_data = {
         'rssis': lastRssis,
         'coord_real': '$realX, $realY',
@@ -222,19 +232,18 @@ class _PositionPageState extends State<PositionPage> {
 
       postKnnMetrics(new_data);
 
-
       setState(() {
         currentX = bleX;
         currentY = bleY;
         fetchedData = data;
         ;
       });
-    } else {
+    } catch (e) {
       throw Exception('Falha ao carregar os dados');
     }
   }
 
-  Future<void> postKnnMetrics(Map<String, dynamic> data) async {
+    Future<void> postKnnMetrics(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse(
           'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_metric'),
@@ -250,6 +259,7 @@ class _PositionPageState extends State<PositionPage> {
       throw Exception('Falha ao carregar os dados');
     }
   }
+
 
   Future<void> fetchDataV2(List<int?> rssiValues) async {
     if (!_isMounted) return;
@@ -278,20 +288,26 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-    //_magnetometerSubscription.cancel();
+/*     _magnetometerSubscription.cancel();
+ */
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
+  }
+
+  bool isNullOrEmpty(String? value) {
+    return value == null || value.isEmpty;
   }
 
   @override
   Widget build(BuildContext context) {
     final int rows = 4;
     final int cols = 3;
+
     final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
 
     setState(() {
-      realX = int.parse(arguments['x']);
-      realY = int.parse(arguments['y']);
+      realX = !isNullOrEmpty(arguments['x']) ? int.parse(arguments['x']) : 66;
+      realY = !isNullOrEmpty(arguments['y']) ? int.parse(arguments['y']) : 66;
     });
 
     return Scaffold(
