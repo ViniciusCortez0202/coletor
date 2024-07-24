@@ -38,17 +38,17 @@ class _PositionPageState extends State<PositionPage> {
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   //Lista de valores do sensor magnético
-  // List<MagnetometerEvent> _magnetometerValues = [];
-  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  //List<MagnetometerEvent> _magnetometerValues = [];
+  //late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    // _magnetometerSubscription = magnetometerEvents.listen((event) {
-    //   setState(() {
-    //     _magnetometerValues = [event];
-    //     _magnetometerValues.add(event);
-    //   });
-    // });
+    /*  _magnetometerSubscription = magnetometerEvents.listen((event){
+      setState((){
+        _magnetometerValues = [event];
+        _magnetometerValues.add(event);
+      });
+    }); */
 
     super.initState();
     _isMounted = true;
@@ -221,34 +221,29 @@ class _PositionPageState extends State<PositionPage> {
       final bleCoordsValues =
           bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
 
+      final bleX = int.parse(bleCoordsValues[0][0].trim());
+      final bleY = int.parse(bleCoordsValues[0][2].trim());
 
-      print("BLE COORDS: $bleCoordsValues");
+      var new_data = {
+        'rssis': lastRssis,
+        'coord_real': '$realX, $realY',
+        'coord_estimated': '$bleX, $bleY',
+      };
 
-      // final bleX = int.parse(bleCoordsValues[0].trim());
-      // final bleY = int.parse(bleCoordsValues[1].trim());
-
-      
-
-      // var new_data = {
-      //   'rssis': lastRssis,
-      //   'coord_real': '$realX, $realY',
-      //   'coord_estimated': '$bleX, $bleY',
-      // };
-
-      // postKnnMetrics(new_data);
-
+      postKnnMetrics(new_data);
 
       setState(() {
-        // currentX = bleX;
-        // currentY = bleY;
-        // fetchedData = data;
+        currentX = bleX;
+        currentY = bleY;
+        fetchedData = data;
+        ;
       });
     } catch (e) {
       throw Exception('Falha ao carregar os dados');
     }
   }
 
-  Future<void> postKnnMetrics(Map<String, dynamic> data) async {
+    Future<void> postKnnMetrics(Map<String, dynamic> data) async {
     final response = await http.post(
       Uri.parse(
           'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_metric'),
@@ -264,6 +259,7 @@ class _PositionPageState extends State<PositionPage> {
       throw Exception('Falha ao carregar os dados');
     }
   }
+
 
   Future<void> fetchDataV2(List<int?> rssiValues) async {
     if (!_isMounted) return;
@@ -292,20 +288,26 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-    //_magnetometerSubscription.cancel();
+/*     _magnetometerSubscription.cancel();
+ */
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
+  }
+
+  bool isNullOrEmpty(String? value) {
+    return value == null || value.isEmpty;
   }
 
   @override
   Widget build(BuildContext context) {
     final int rows = 4;
     final int cols = 3;
+
     final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
 
     setState(() {
-      realX = int.parse(arguments['x']);
-      realY = int.parse(arguments['y']);
+      realX = !isNullOrEmpty(arguments['x']) ? int.parse(arguments['x']) : 66;
+      realY = !isNullOrEmpty(arguments['y']) ? int.parse(arguments['y']) : 66;
     });
 
     return Scaffold(
