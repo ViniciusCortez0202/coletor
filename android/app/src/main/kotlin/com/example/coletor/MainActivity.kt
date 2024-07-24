@@ -126,7 +126,6 @@ class MainActivity : FlutterActivity() {
             }
 
             override fun onIBeaconLost(iBeacon: IBeaconDevice, region: IBeaconRegion) {
-                //Beacon lost
             }
         }
     }

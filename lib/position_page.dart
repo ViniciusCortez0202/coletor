@@ -20,6 +20,10 @@ class PositionPage extends StatefulWidget {
 class _PositionPageState extends State<PositionPage> {
   int currentX = 0;
   int currentY = 0;
+
+  int realX = 0;
+  int realY = 0;
+
   bool _isMounted = false;
   int time_seconds = 6;
   Map<String, dynamic> fetchedData = {};
@@ -34,17 +38,17 @@ class _PositionPageState extends State<PositionPage> {
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   //Lista de valores do sensor magnético
-  //List<MagnetometerEvent> _magnetometerValues = [];
-  //late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  // List<MagnetometerEvent> _magnetometerValues = [];
+  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    /*  _magnetometerSubscription = magnetometerEvents.listen((event){
-      setState((){
-        _magnetometerValues = [event];
-        _magnetometerValues.add(event);
-      });
-    }); */
+    // _magnetometerSubscription = magnetometerEvents.listen((event) {
+    //   setState(() {
+    //     _magnetometerValues = [event];
+    //     _magnetometerValues.add(event);
+    //   });
+    // });
 
     super.initState();
     _isMounted = true;
@@ -157,9 +161,9 @@ class _PositionPageState extends State<PositionPage> {
     double rss3Median = median(rss3List);
     double rss4Median = median(rss4List);
 
-    print("RSS1: $rss1List");
-    print("RSS2: $rss2List");
-    print("RSS3: $rss3List");
+    // print("RSS1: $rss1List");
+    // print("RSS2: $rss2List");
+    // print("RSS3: $rss3List");
 
     print("Mediana RSS1: $rss1Median");
     print("Mediana RSS2: $rss2Median");
@@ -217,16 +221,46 @@ class _PositionPageState extends State<PositionPage> {
       final bleCoordsValues =
           bleCoords.replaceAll('(', '').replaceAll(')', '').split(',');
 
-      final bleX = int.parse(bleCoordsValues[0][0].trim());
-      final bleY = int.parse(bleCoordsValues[0][2].trim());
+
+      print("BLE COORDS: $bleCoordsValues");
+
+      // final bleX = int.parse(bleCoordsValues[0].trim());
+      // final bleY = int.parse(bleCoordsValues[1].trim());
+
+      
+
+      // var new_data = {
+      //   'rssis': lastRssis,
+      //   'coord_real': '$realX, $realY',
+      //   'coord_estimated': '$bleX, $bleY',
+      // };
+
+      // postKnnMetrics(new_data);
+
 
       setState(() {
-        currentX = bleX;
-        currentY = bleY;
-        fetchedData = data;
-        ;
+        // currentX = bleX;
+        // currentY = bleY;
+        // fetchedData = data;
       });
     } catch (e) {
+      throw Exception('Falha ao carregar os dados');
+    }
+  }
+
+  Future<void> postKnnMetrics(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse(
+          'https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_metric'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(data),
+    );
+
+    if (response.statusCode == 200) {
+      print('KNN Metrics posted');
+    } else {
       throw Exception('Falha ao carregar os dados');
     }
   }
@@ -258,8 +292,7 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-/*     _magnetometerSubscription.cancel();
- */
+    //_magnetometerSubscription.cancel();
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
   }
@@ -268,6 +301,12 @@ class _PositionPageState extends State<PositionPage> {
   Widget build(BuildContext context) {
     final int rows = 4;
     final int cols = 3;
+    final arguments = (ModalRoute.of(context)?.settings.arguments ?? <String, dynamic>{}) as Map;
+
+    setState(() {
+      realX = int.parse(arguments['x']);
+      realY = int.parse(arguments['y']);
+    });
 
     return Scaffold(
       appBar: AppBar(
