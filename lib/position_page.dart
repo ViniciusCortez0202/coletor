@@ -37,17 +37,17 @@ class _PositionPageState extends State<PositionPage> {
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
   //Lista de valores do sensor magnético
-  List<MagnetometerEvent> _magnetometerValues = [];
-  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  // List<MagnetometerEvent> _magnetometerValues = [];
+  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    _magnetometerSubscription = magnetometerEvents.listen((event) {
-      setState(() {
-        _magnetometerValues = [event];
-        _magnetometerValues.add(event);
-      });
-    });
+    // _magnetometerSubscription = magnetometerEvents.listen((event) {
+    //   setState(() {
+    //     _magnetometerValues = [event];
+    //     _magnetometerValues.add(event);
+    //   });
+    // });
 
     super.initState();
     _isMounted = true;
@@ -83,23 +83,23 @@ class _PositionPageState extends State<PositionPage> {
         : 0.0;
     double rss2 = lastRssis.length > 1 ? lastRssis[1].toDouble() : 0.0;
     double rss3 = lastRssis.length > 2 ? lastRssis[2].toDouble() : 0.0;
-    double magneticX =
-        _magnetometerValues.isNotEmpty ? _magnetometerValues.last.x : 0.0;
-    double magneticY =
-        _magnetometerValues.isNotEmpty ? _magnetometerValues.last.y : 0.0;
-    double magneticZ =
-        _magnetometerValues.isNotEmpty ? _magnetometerValues.last.z : 0.0;
-    double magneticRssi =
-        sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+    // double magneticX =
+    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.x : 0.0;
+    // double magneticY =
+    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.y : 0.0;
+    // double magneticZ =
+    //     _magnetometerValues.isNotEmpty ? _magnetometerValues.last.z : 0.0;
+    // double magneticRssi =
+    //     sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
 
     var data = {
       'rss1': rss1,
       'rss2': rss2,
       'rss3': rss3,
-      'magneticX': magneticX,
-      'magneticY': magneticY,
-      'magneticZ': magneticZ,
-      'magneticRssi': magneticRssi
+      'magneticX': 0.0,
+      'magneticY': 0.0,
+      'magneticZ':0.0,
+      'magneticRssi': 0.0
     };
 
     fetchData(data);
@@ -278,7 +278,7 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-    _magnetometerSubscription.cancel();
+    //_magnetometerSubscription.cancel();
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
   }
