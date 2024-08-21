@@ -37,17 +37,17 @@ class _PositionPageState extends State<PositionPage> {
   StreamSubscription<BluetoothState>? _streamBluetooth;
   final kalman = SimpleKalman(errorMeasure: 1, errorEstimate: 150, q: 0.9);
 
-  List<MagnetometerEvent> _magnetometerValues = [];
-  late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
+  // List<MagnetometerEvent> _magnetometerValues = [];
+  // late StreamSubscription<MagnetometerEvent> _magnetometerSubscription;
 
   @override
   void initState() {
-    _magnetometerSubscription = magnetometerEvents.listen((event){
-      setState((){
-        _magnetometerValues = [event];
-        _magnetometerValues.add(event);
-      });
-    });
+    // _magnetometerSubscription = magnetometerEvents.listen((event){
+    //   setState((){
+    //     _magnetometerValues = [event];
+    //     _magnetometerValues.add(event);
+    //   });
+    // });
 
     super.initState();
     _isMounted = true;
@@ -86,10 +86,10 @@ class _PositionPageState extends State<PositionPage> {
           : 0.0;
       double rss2 = lastRssis.length > 1 ? lastRssis[1]!.toDouble() : 0.0;
       double rss3 = lastRssis.length > 2 ? lastRssis[2]!.toDouble() : 0.0;
-      double magneticX = _magnetometerValues.last.x;
-      double magneticY = _magnetometerValues.last.y;
-      double magneticZ = _magnetometerValues.last.z;
-      double magneticRssi = sqrt(pow(magneticX, 2) + pow(magneticY, 2) + pow(magneticZ, 2));
+      double magneticX = 0;
+      double magneticY = 0;
+      double magneticZ = 0;
+      double magneticRssi = 0;
 
       List<int> magneticData = [magneticX.toInt(), magneticY.toInt(), magneticZ.toInt(), magneticRssi.toInt()];
 
@@ -250,7 +250,7 @@ class _PositionPageState extends State<PositionPage> {
   void dispose() {
     _isMounted = false;
     super.dispose();
-     _magnetometerSubscription.cancel();
+     //_magnetometerSubscription.cancel();
     _streamRanging?.cancel();
     _streamBluetooth?.cancel();
   }
