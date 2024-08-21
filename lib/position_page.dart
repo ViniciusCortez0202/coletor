@@ -178,7 +178,7 @@ class _PositionPageState extends State<PositionPage> {
     int rss4 =
         rss4List.isNotEmpty && rss4List.length > 0 ? rss4Median.toInt() : 0;
 
-    lastRssis = [rss1, rss2, rss3];
+    lastRssis = [rss1, rss2, rss3, rss4];
 
     rss1List.clear();
     rss2List.clear();
