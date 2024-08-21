@@ -1,4 +1,5 @@
 import 'package:coletor/pages/colect_page.dart';
+import 'package:coletor/settings_page.dart';
 import 'package:coletor/start_scan_page.dart';
 import 'package:coletor/position_page.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +26,8 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const ColectPage(),
         '/colect': (context) => const StartScandPage(),
-        '/position': (context) => const PositionPage()
+        '/position': (context) => const PositionPage(),
+        '/settings': (context) => SettingsPage(),
       },
     );
   }

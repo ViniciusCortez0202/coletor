@@ -40,6 +40,7 @@ dependencies:
   path_provider: ^2.0.5
   permission_handler: ^11.3.0
   http: ^1.2.1
+  shared_preferences: ^2.0.0
 
   flutter_beacon: ^0.5.1
   geolocator: ^9.0.2

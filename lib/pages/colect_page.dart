@@ -21,79 +21,92 @@ class _ColectPageState extends State<ColectPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Coletor")),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18.0),
-        child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(title: const Text("Coletor")),
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 18.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: TextField(
-                      decoration:
-                          const InputDecoration(hintText: "Coordenada X"),
-                      keyboardType: TextInputType.number,
-                      controller: controllerX,
-                    ),
-                  ),
-                  const SizedBox(width: 20),
-                  Flexible(
-                    child: TextField(
-                      decoration:
-                          const InputDecoration(hintText: "Coordenada Y"),
-                      keyboardType: TextInputType.number,
-                      controller: controllerY,
-                    ),
-                  ),
-                ],
+              Flexible(
+                child: TextField(
+                  decoration: const InputDecoration(hintText: "Coordenada X"),
+                  keyboardType: TextInputType.number,
+                  controller: controllerX,
+                ),
               ),
-              const SizedBox(height: 50),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  OutlinedButton(
-                      onPressed: () { 
-                        Navigator.of(context).pushNamed('/position', arguments: {
-                          'x': controllerX.text,
-                          'y': controllerY.text
-                        });
-                      }, child: const Text("Estimar posição")),
-                  const SizedBox(width: 20),
-                  FilledButton(
-                      onPressed: () {
-                        if (controllerX.text.trim().isEmpty ||
-                            controllerY.text.trim().isEmpty) {
-                          showDialog(
-                              context: context,
-                              barrierDismissible: false,
-                              builder: (context) => AlertDialog(
-                                    title: const Text(
-                                        "As coordenada não podem ser vazias"),
-                                    actions: [
-                                      ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: const Text("ok"))
-                                    ],
-                                  ));
+              const SizedBox(width: 20),
+              Flexible(
+                child: TextField(
+                  decoration: const InputDecoration(hintText: "Coordenada Y"),
+                  keyboardType: TextInputType.number,
+                  controller: controllerY,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 50),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).pushNamed('/position', arguments: {
+                    'x': controllerX.text,
+                    'y': controllerY.text
+                  });
+                },
+                child: const Text("Estimar posição"),
+              ),
+              const SizedBox(width: 20),
+              FilledButton(
+                onPressed: () {
+                  if (controllerX.text.trim().isEmpty ||
+                      controllerY.text.trim().isEmpty) {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (context) => AlertDialog(
+                        title: const Text(
+                            "As coordenadas não podem ser vazias"),
+                        actions: [
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text("Ok"),
+                          )
+                        ],
+                      ),
+                    );
 
-                          return;
-                        }
-                        Navigator.of(context).pushNamed('/colect', arguments: {
-                          'x': controllerX.text,
-                          'y': controllerY.text
-                        });
-                      },
-                      child: const Text("Iniciar coleta"))
-                ],
-              )
-            ]),
+                    return;
+                  }
+                  Navigator.of(context).pushNamed('/colect', arguments: {
+                    'x': controllerX.text,
+                    'y': controllerY.text
+                  });
+                },
+                child: const Text("Iniciar coleta"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(context).pushNamed('/settings');
+            },
+            child: const Text("Configuração"),
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
+
 }

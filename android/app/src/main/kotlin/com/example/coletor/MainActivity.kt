@@ -29,6 +29,7 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "samples.flutter.dev/beacons"
     val values = mutableListOf<MutableList<Int>>()
     var eventsSink: EventChannel.EventSink? = null
+    var beaconsFilter: String? = null
 
     override fun onStart() {
         super.onStart()
@@ -40,33 +41,6 @@ class MainActivity : FlutterActivity() {
             ?.scanMode(ScanMode.LOW_LATENCY)
 
         val beaconRegions: MutableCollection<IBeaconRegion> = ArrayList()
-
-//        val region1: IBeaconRegion = BeaconRegion.Builder()
-//            .identifier("Kontakt")
-//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-//            .major(53462)
-//            .minor(52894)
-//            .build()
-//
-//        val region2: IBeaconRegion = BeaconRegion.Builder()
-//            .identifier("Kontakt")
-//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-//            .major(50411)
-//            .minor(53503)
-//            .build()
-//
-//        val region3: IBeaconRegion = BeaconRegion.Builder()
-//            .identifier("Kontakt")
-//            .proximity(UUID.fromString("f7826da6-4fa2-4e98-8024-bc5b71e0893e"))
-//            .major(1888)
-//            .minor(4774)
-//            .build()
-//
-//        beaconRegions.add(region1)
-//        beaconRegions.add(region2)
-//        beaconRegions.add(region3)
-
-        //proximityManager?.spaces()?.iBeaconRegions(beaconRegions)
         proximityManager?.setIBeaconListener(createIBeaconListener())
     }
 
@@ -83,6 +57,12 @@ class MainActivity : FlutterActivity() {
             } else if (call.method == "stopListener") {
                 proximityManager!!.stopScanning()
                 result.success(values)
+            } else if (call.method == "setBeaconsFilter") {
+                beaconsFilter = call.argument<String>("beaconsFilter")
+                println("Received RSSIs from Flutter: $beaconsFilter")
+
+                proximityManager?.setIBeaconListener(createIBeaconListener())
+                result.success("beaconsFilter set")
             } else {
                 result.notImplemented()
             }
@@ -108,11 +88,11 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
-            val beaconAddresses = listOf("00:FA:B6:1D:DD:CF", "00:FA:B6:1D:DF:8E", "00:FA:B6:1D:DF:2E")
+            //val beaconAddresses = listOf("00:FA:B6:1D:DD:CF", "00:FA:B6:1D:DF:8E", "00:FA:B6:1D:DF:2E")
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
+                val beaconAddresses: List<String> = beaconsFilter?.split("/") ?: listOf()
                 val rssiMap = iBeacons.associateBy({ it.address }, { it.rssi.toInt() })
-                //println(rssiMap)
 
                 val rssis = beaconAddresses.map { address -> rssiMap[address] ?: 0 }.toMutableList()
 

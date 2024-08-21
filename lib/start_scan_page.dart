@@ -9,6 +9,7 @@ import 'package:simple_kalman/simple_kalman.dart';
 import 'package:http/http.dart' as http;
 import 'package:sensors_plus/sensors_plus.dart';
 import 'dart:math';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dart:convert'; // Importação necessária para jsonEncode
 import 'package:http/http.dart' as http;
@@ -21,6 +22,8 @@ class StartScandPage extends StatefulWidget {
 }
 
 List<String> _beaconsData = [];
+String? description;
+String? rssis;
 
 class _StartScandPageState extends State<StartScandPage> {
   List<String> _scanResults = [];
@@ -48,7 +51,7 @@ class _StartScandPageState extends State<StartScandPage> {
         _magnetometerValues.add(event);
       });
     }); 
-
+    _loadData();
     super.initState();
   }
 
@@ -56,6 +59,13 @@ class _StartScandPageState extends State<StartScandPage> {
   void dispose() {
     _magnetometerSubscription.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      description = prefs.getString('description');
+    });
   }
 
   Future<void> startScan() async {
@@ -87,13 +97,13 @@ class _StartScandPageState extends State<StartScandPage> {
     }
   }
 
-  Future<void> postData(List<String> data) async {
+  Future<void> postData(List<String> data, String? description) async {
     final response = await http.post(
         Uri.parse('https://rei-dos-livros-api-f270d083e2b1.herokuapp.com/knn_position'),
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({'data': data}),
+        body: jsonEncode({'data': data, 'description': description}),
       );
 
     if (response.statusCode == 200) {
@@ -117,7 +127,23 @@ class _StartScandPageState extends State<StartScandPage> {
         },
       );
     } else {
-      print("Erro ao enviar os dados: ${response.statusCode}");
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text("Erro ao enviar dados"),
+            content: Text("Status code: ${response.statusCode}"),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
     }
   }
 
@@ -160,38 +186,6 @@ class _StartScandPageState extends State<StartScandPage> {
       _isScanning = false;
     } on PlatformException catch (e) {
       print(e);
-    }
-  }
-
-  Future<void> _saveCSV() async {
-    if (_beaconsData.isNotEmpty) {
-      try {
-        var status = await Permission.storage.status;
-        print("STATUS: $status");
-        if (!status.isGranted) {
-          await Permission.storage.request();
-        }
-
-        Directory _directory = Directory("/storage/emulated/0/Download");
-        final exPath = _directory.path;
-        String csvPath = "${exPath}/beacon_datav2.csv";
-        File csvFile = File(csvPath);
-
-        List<List<dynamic>> csvData = _beaconsData.map((row) => row.split(';')).toList();
-        String csvContent = const ListToCsvConverter().convert(csvData);
-        
-        await csvFile.writeAsString(csvContent);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Arquivo CSV salvo em ${csvFile.path}")),
-        );
-      } catch (e) {
-        print("Erro ao salvar o arquivo CSV: $e");
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Nenhum dado disponível para exportar")),
-      );
     }
   }
 
@@ -244,13 +238,6 @@ class _StartScandPageState extends State<StartScandPage> {
                     ),
                     ElevatedButton(
                       onPressed: () {
-                        //_saveCSV();
-                        postData(_beaconsData);
-                      },
-                      child: Text("Exportar CSV"),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
                         startScan();
                       },
                       child: const Text("Scan"),
@@ -265,6 +252,14 @@ class _StartScandPageState extends State<StartScandPage> {
                         _scanResults.clear();
                       },
                       child: const Text("Salvar dados"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        //_saveCSV();
+                        postData(_beaconsData, description);
+                        _beaconsData.clear();
+                      },
+                      child: Text("Enviar dados"),
                     ),
                   ],
                 ),
