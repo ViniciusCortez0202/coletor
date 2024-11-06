@@ -102,6 +102,16 @@ Widget build(BuildContext context) {
             },
             child: const Text("Configuração"),
           ),
+          const SizedBox(height: 20),
+          FilledButton(
+            style: ButtonStyle(
+              backgroundColor: MaterialStateProperty.all<Color>(Colors.red),
+            ),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/aproximate');
+            },
+            child: const Text("Aproximação"),
+          ),
         ],
       ),
     ),

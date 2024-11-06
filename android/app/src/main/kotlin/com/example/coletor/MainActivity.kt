@@ -88,7 +88,6 @@ class MainActivity : FlutterActivity() {
             override fun onIBeaconDiscovered(iBeacon: IBeaconDevice, region: IBeaconRegion) {
                 //Beacon discovered
             }
-            //val beaconAddresses = listOf("00:FA:B6:1D:DD:CF", "00:FA:B6:1D:DF:8E", "00:FA:B6:1D:DF:2E")
 
             override fun onIBeaconsUpdated(iBeacons: List<IBeaconDevice>, region: IBeaconRegion) {
                 val beaconAddresses: List<String> = beaconsFilter?.split("/") ?: listOf()
@@ -96,9 +95,18 @@ class MainActivity : FlutterActivity() {
 
                 val rssis = beaconAddresses.map { address -> rssiMap[address] ?: 0 }.toMutableList()
 
+                val beaconData = iBeacons.filter { it.address in beaconAddresses }
+                            .map { beacon ->
+                                mapOf(
+                                    "uuid" to beacon.address.toString(),
+                                    "rssi" to beacon.rssi.toInt()
+                                )
+                            }
+
                 if(eventsSink != null) {
-                    println(rssis)
-                    eventsSink!!.success(rssis)
+                    println(beaconData)
+
+                    eventsSink!!.success(beaconData)
                 }
                 values.add(rssis)
 

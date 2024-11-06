@@ -3,6 +3,7 @@ import 'package:coletor/settings_page.dart';
 import 'package:coletor/start_scan_page.dart';
 import 'package:coletor/position_page.dart';
 import 'package:flutter/material.dart';
+import 'package:coletor/aproximate_page.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 void main() {
@@ -28,6 +29,7 @@ class MyApp extends StatelessWidget {
         '/colect': (context) => const StartScandPage(),
         '/position': (context) => const PositionPage(),
         '/settings': (context) => SettingsPage(),
+        '/aproximate': (context) => AproximatePage()
       },
     );
   }
