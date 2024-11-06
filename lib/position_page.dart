@@ -29,6 +29,7 @@ class _PositionPageState extends State<PositionPage> {
 
   List<int?> lastRssis = [];
   String? description;
+  String? modeloEscolhido;
 
   static const platform = MethodChannel('samples.flutter.dev/beacons');
   static const eventChannel = EventChannel('bluetoothBleEvent');
@@ -59,6 +60,7 @@ class _PositionPageState extends State<PositionPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       description = prefs.getString('description');
+      modeloEscolhido = prefs.getString('modeloEscolhido');
     });
   }
 
@@ -86,6 +88,7 @@ class _PositionPageState extends State<PositionPage> {
           : 0.0;
       double rss2 = lastRssis.length > 1 ? lastRssis[1]!.toDouble() : 0.0;
       double rss3 = lastRssis.length > 2 ? lastRssis[2]!.toDouble() : 0.0;
+      double rss4 = lastRssis.length > 3 ? lastRssis[3]!.toDouble() : 0.0;
       double magneticX = 0;
       double magneticY = 0;
       double magneticZ = 0;
@@ -97,10 +100,7 @@ class _PositionPageState extends State<PositionPage> {
         'rss1': rss1,
         'rss2': rss2,
         'rss3': rss3,
-        'magneticX': magneticX,
-        'magneticY': magneticY,
-        'magneticZ': magneticZ,
-        'magneticRssi': magneticRssi,
+        'rss4': rss4
       };
 
       fetchData(data, magneticData);
@@ -150,6 +150,7 @@ class _PositionPageState extends State<PositionPage> {
     print("Mediana RSS1: $rss1Median");
     print("Mediana RSS2: $rss2Median");
     print("Mediana RSS3: $rss3Median");
+    print("Mediana RSS4: $rss4Median");
 
     int rss1 =
         rss1List.isNotEmpty && rss1List.length > 0 ? rss1Median.toInt() : 0;
@@ -186,6 +187,12 @@ class _PositionPageState extends State<PositionPage> {
 
   Future<void> fetchData(Map<String, double> data2, List<int?> magneticData) async {
     if (!_isMounted) return;
+
+    Map<String, dynamic> combinedData = {
+      ...data2,
+      'model_type': modeloEscolhido,
+    };
+        
     try {
       final response = await http.post(
         Uri.parse(
@@ -193,7 +200,7 @@ class _PositionPageState extends State<PositionPage> {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: json.encode(data2),
+        body: json.encode(combinedData),
       );
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -207,7 +214,7 @@ class _PositionPageState extends State<PositionPage> {
       final bleX = int.parse(bleCoordsValues[0][0].trim());
       final bleY = int.parse(bleCoordsValues[0][2].trim());
 
-      List<int?> bleWithMagnetic = lastRssis + magneticData;
+      List<int?> bleWithMagnetic = lastRssis; //+ magneticData;
 
       var new_data = {
         'rssis': bleWithMagnetic,

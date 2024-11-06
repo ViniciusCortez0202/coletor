@@ -11,9 +11,11 @@ class _SettingsPageState extends State<SettingsPage> {
   final TextEditingController descricaoController = TextEditingController();
   final TextEditingController beaconsFilterController = TextEditingController();
   static const platform = MethodChannel('samples.flutter.dev/beacons');
+  static List<String> modelos = <String>['MemorialRainhaMarta-parado', 'MemorialRainhaMarta-movimento', 'MemorialRainhaMarta-mesclado'];
 
   String? savedDescricao;
   String? beaconsFilter;
+  String? modeloEscolhido;
 
   @override
   void initState() {
@@ -26,6 +28,7 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       savedDescricao = prefs.getString('description');
       beaconsFilter = prefs.getString('beaconsFilter');
+      modeloEscolhido = prefs.getString('modeloEscolhido');
       descricaoController.text = savedDescricao ?? '';
       beaconsFilterController.text = beaconsFilter ?? '';
     });
@@ -35,6 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('description', descricaoController.text);
     await prefs.setString('beaconsFilter', beaconsFilterController.text);
+    await prefs.setString('modeloEscolhido', modeloEscolhido ?? '');
 
     setState(() {
       savedDescricao = descricaoController.text;
@@ -73,6 +77,22 @@ class _SettingsPageState extends State<SettingsPage> {
               decoration: InputDecoration(labelText: 'Beacons Filter'),
             ),
             SizedBox(height: 16),
+                // DropdownButton
+              DropdownButton<String>(
+              hint: Text("Selecione um modelo"),
+              value: (modeloEscolhido != null && modelos.contains(modeloEscolhido)) ? modeloEscolhido : null,
+              onChanged: (String? newValue) {
+                setState(() {
+                  modeloEscolhido = newValue ?? '';
+                });
+              },
+              items: modelos.map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            ),
             ElevatedButton(
               onPressed: _saveData,
               child: Text('Salvar'),
