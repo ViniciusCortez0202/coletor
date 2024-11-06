@@ -40,7 +40,7 @@ class _AproximatePageState extends State<AproximatePage> {
   // Mock de dados dos beacons com UUID, nome da obra e distância
   List<Map<String, dynamic>> beaconsProximos = [];
 
-  double calculateDistance(int rssi, {int rssiRef = -69, double n = 2.0}) {
+  double calculateDistance(int rssi, {int rssiRef = -84, double n = 2.0}) {
     double distance = (pow(10, (rssiRef - rssi) / (10 * n))) as double;
     return double.parse(distance.toStringAsFixed(2));
   }
@@ -68,17 +68,14 @@ class _AproximatePageState extends State<AproximatePage> {
           List<dynamic> beaconsList = event as List<dynamic>;
           List<Map<String, dynamic>> updatedProximos = [];
           for (var beaconData in beaconsList) {
-            // Verifica se os dados não são nulos e usa valores padrão se necessário
             String uuid = beaconData['uuid'];
             int rssi = beaconData['rssi'] is int ? beaconData['rssi'] : 0;
             double distance = calculateDistance(rssi);
 
-            if (distance <= 2.0) {
+            if (distance <= 1.0) {
               updatedProximos.add({'uuid': uuid, 'distancia': distance});
             }
           }
-
-          //beaconsProximos = updatedProximos;
 
           setState((){
             beaconsProximos = updatedProximos;
